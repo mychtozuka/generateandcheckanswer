@@ -43,6 +43,7 @@ export default function Home() {
   const [model, setModel] = useState('gemini-2.5-pro');
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0); // 進捗率 (0-100)
+  const [processingStatus, setProcessingStatus] = useState(''); // 進捗状況テキスト
   const [showSettings, setShowSettings] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -96,6 +97,7 @@ export default function Home() {
   const handleFileChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      // 画像ならプレビューURLを作成、PDFならnull（アイコン表示に使用）
       const previewUrl = selectedFile.type.startsWith('image/') 
         ? URL.createObjectURL(selectedFile) 
         : null;
@@ -143,6 +145,7 @@ export default function Home() {
     setLoading(true);
     setResults(new Array(5).fill('')); // 結果を初期化
     setProgress(0);
+    setProcessingStatus('準備中...');
 
     try {
       let completedCount = 0;
@@ -151,6 +154,9 @@ export default function Home() {
       // 1問ずつ順番に処理 (クライアント側でループ)
       for (const q of questions) {
         if (!q.text && !q.file) continue;
+
+        // 進捗状況を更新
+        setProcessingStatus(`${completedCount + 1}/${totalCount}問目をチェック中`);
 
         let publicFileUrl = null;
 
@@ -237,16 +243,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              System Online
-            </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               title="プロンプト設定"
             >
-              <Settings size={20} />
+              <span>プロンプト設定</span>
+              <Settings size={18} />
             </button>
           </div>
         </header>
@@ -312,10 +315,12 @@ export default function Home() {
                     </div>
                     {q.file && (
                       <div className="text-xs text-gray-500 flex items-center gap-2 bg-white p-2 rounded border border-gray-200">
-                        {q.previewUrl ? (
+                        {q.file.type.startsWith('image/') && q.previewUrl ? (
                           <img src={q.previewUrl} alt="Preview" className="h-8 w-8 object-cover rounded" />
                         ) : (
-                          <FileText size={16} className="text-blue-500" />
+                          <div className="h-8 w-8 flex items-center justify-center bg-red-100 text-red-500 rounded">
+                            <FileText size={16} />
+                          </div>
                         )}
                         <span className="truncate flex-1">{q.file.name}</span>
                       </div>
@@ -341,7 +346,7 @@ export default function Home() {
               
               <div className="relative z-10 flex items-center gap-2">
                 {loading ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-                {loading ? `AIが思考中... (${progress}%)` : 'まとめて解答を作成する'}
+                {loading ? `AIが思考中... (${processingStatus})` : 'まとめて解答を作成する'}
               </div>
             </button>
           </div>

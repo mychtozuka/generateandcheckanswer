@@ -55,7 +55,17 @@ export async function POST(req: Request) {
         const imageResp = await fetch(imageUrl);
         const arrayBuffer = await imageResp.arrayBuffer();
         const base64Image = Buffer.from(arrayBuffer).toString('base64');
-        const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+        
+        // MIMEタイプの判定を強化
+        let mimeType = imageResp.headers.get('content-type');
+        if (!mimeType || mimeType === 'application/octet-stream') {
+          // ヘッダーから判別できない場合は拡張子で判断
+          if (imageUrl.toLowerCase().includes('.pdf')) {
+            mimeType = 'application/pdf';
+          } else {
+            mimeType = 'image/jpeg'; // デフォルト
+          }
+        }
 
         contentParts.push({
           inlineData: {
