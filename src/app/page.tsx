@@ -277,7 +277,7 @@ export default function Home() {
                   <div className="font-bold text-gray-500 mb-2">No.{q.id}</div>
                   <div className="space-y-3">
                     <textarea
-                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[80px] text-sm"
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[160px] text-sm"
                       placeholder={`問題文 No.${q.id}`}
                       value={q.text}
                       onChange={(e) => handleTextChange(q.id, e.target.value)}
@@ -360,22 +360,28 @@ export default function Home() {
             <div className="overflow-y-auto flex-1 pr-2">
               {results.length > 0 ? (
                 <div className="space-y-6">
-                  {results.map((ans, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="bg-gray-100 px-4 py-2 font-bold text-gray-700 border-b border-gray-200">
-                        No.{index + 1} の解答
-                      </div>
-                      <div className="p-4 prose prose-blue max-w-none bg-white">
-                        <div className={`whitespace-pre-wrap leading-relaxed ${
-                          ans.startsWith('（エラー') || ans.startsWith('（AI生成エラー') || ans.startsWith('（画像') 
-                            ? 'text-red-600 font-medium bg-red-50 p-4 rounded border border-red-100' 
-                            : 'text-gray-800'
-                        }`}>
-                          {ans}
+                  {results.map((ans, index) => {
+                    const question = questions[index];
+                    const fileName = question.file ? question.file.name.replace(/\.[^/.]+$/, "") : null;
+                    const title = fileName ? `${fileName} の解答` : `No.${index + 1} の解答`;
+
+                    return (
+                      <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="bg-gray-100 px-4 py-2 font-bold text-gray-700 border-b border-gray-200">
+                          {title}
+                        </div>
+                        <div className="p-4 prose prose-blue max-w-none bg-white">
+                          <div className={`whitespace-pre-wrap leading-relaxed ${
+                            ans.startsWith('（エラー') || ans.startsWith('（AI生成エラー') || ans.startsWith('（画像') 
+                              ? 'text-red-600 font-medium bg-red-50 p-4 rounded border border-red-100' 
+                              : 'text-gray-800'
+                          }`}>
+                            {ans}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
