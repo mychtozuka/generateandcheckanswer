@@ -6,13 +6,13 @@ import { createClient } from '@supabase/supabase-js';
 // Vercelのタイムアウト対策
 export const maxDuration = 60; 
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(req: Request) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   try {
     // 単一の問題を受け取る形に変更
     const { text, imageUrl, model: modelName } = await req.json();
