@@ -1,15 +1,31 @@
 // src/app/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Upload, Send, CheckCircle, FileText, Trash2 } from 'lucide-react';
+import { Loader2, Upload, Send, CheckCircle, FileText, Trash2, Settings, X } from 'lucide-react';
 
 // Supabaseクライアント
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+const DEFAULT_PROMPT = `あなたはプロの学習塾講師および教材校正者です。
+入力された問題を解く前に、問題文や図表に不備（矛盾、情報不足、誤字脱字、解答不能な設定など）がないか厳密にチェックしてください。
+
+以下のフォーマットに従って出力してください。
+
+もし問題に不備や改善点がある場合：
+【指摘事項】
+(具体的な問題点と修正案)
+
+解答が可能な場合（不備があっても推測可能なら含む）：
+【正解】
+(明確な答えのみ記述すること。解説は不要です。)
+
+※不備があっても解答できる場合は、【指摘事項】と【正解】の両方を出力してください。
+※解答不能なほど致命的な不備がある場合は、【指摘事項】のみを出力してください。`;
 
 type QuestionInput = {
   id: number;
@@ -27,6 +43,51 @@ export default function Home() {
   const [model, setModel] = useState('gemini-2.5-pro');
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0); // 進捗率 (0-100)
+  const [showSettings, setShowSettings] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // サーバーから設定を読み込む
+  useEffect(() => {
+    const fetchPrompt = async () => {
+      try {
+        const res = await fetch('/api/settings/prompt');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.prompt) {
+            setSystemPrompt(data.prompt);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch prompt settings:', error);
+      }
+    };
+    fetchPrompt();
+  }, []);
+
+  // 設定を保存する
+  const saveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch('/api/settings/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: systemPrompt }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to save settings');
+      }
+      
+      setShowSettings(false);
+      alert('設定を保存しました（全ユーザーに適用されます）');
+    } catch (error) {
+      console.error(error);
+      alert('設定の保存に失敗しました');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleTextChange = (id: number, value: string) => {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, text: value } : q));
@@ -126,7 +187,8 @@ export default function Home() {
           body: JSON.stringify({
             text: q.text,
             imageUrl: publicFileUrl,
-            model
+            model,
+            customPrompt: systemPrompt
           }),
         });
 
@@ -174,9 +236,18 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            System Online
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              System Online
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+              title="プロンプト設定"
+            >
+              <Settings size={20} />
+            </button>
           </div>
         </header>
 
@@ -310,6 +381,55 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* 設定モーダル */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Settings size={20} /> プロンプト設定
+              </h3>
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-500 mb-4">
+                AIに指示するシステムプロンプトを編集できます。
+                <br />※設定はサーバーに保存され、<span className="font-bold text-red-500">全社員（全ユーザー）に適用されます</span>。
+              </p>
+              <textarea
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                className="w-full h-[400px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm leading-relaxed resize-none"
+                placeholder="システムプロンプトを入力..."
+              />
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setSystemPrompt(DEFAULT_PROMPT)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                デフォルトに戻す
+              </button>
+              <button
+                onClick={saveSettings}
+                disabled={isSavingSettings}
+                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSavingSettings && <Loader2 size={16} className="animate-spin" />}
+                {isSavingSettings ? '保存中...' : '設定を保存して閉じる'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

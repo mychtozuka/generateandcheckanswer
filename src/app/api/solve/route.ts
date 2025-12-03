@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   try {
     // 単一の問題を受け取る形に変更
-    const { text, imageUrl, model: modelName } = await req.json();
+    const { text, imageUrl, model: modelName, customPrompt } = await req.json();
 
     if (!text && !imageUrl) {
       return NextResponse.json({ error: '問題文または画像が必要です' }, { status: 400 });
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const model = genAI.getGenerativeModel({ model: targetModel });
 
     // プロンプト (校正機能付き・併記可能)
-    const prompt = `あなたはプロの学習塾講師および教材校正者です。
+    const defaultPrompt = `あなたはプロの学習塾講師および教材校正者です。
 入力された問題を解く前に、問題文や図表に不備（矛盾、情報不足、誤字脱字、解答不能な設定など）がないか厳密にチェックしてください。
 
 以下のフォーマットに従って出力してください。
@@ -41,6 +41,8 @@ export async function POST(req: Request) {
 
 ※不備があっても解答できる場合は、【指摘事項】と【正解】の両方を出力してください。
 ※解答不能なほど致命的な不備がある場合は、【指摘事項】のみを出力してください。`;
+
+    const prompt = customPrompt || defaultPrompt;
 
     const contentParts: any[] = [prompt];
 
