@@ -12,21 +12,95 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const DEFAULT_PROMPT = `あなたはプロの学習塾講師および教材校正者です。
-入力された問題を解く前に、問題文や図表に不備（矛盾、情報不足、誤字脱字、解答不能な設定など）がないか厳密にチェックしてください。
+const MASTER_TEMPLATE = `# 前提条件とデータ処理ルール
+(ここは必要に応じて調整可能ですが、LaTeXエスケープと$//$無視は維持推奨)
 
-以下のフォーマットに従って出力してください。
+1. **入力データのクリーニング:**
+   - 入力テキストに含まれる \`$//$\` という文字列は、システム内部の改行コードです。これは文脈上の意味を持たないため、**完全に無視（削除、または半角スペースに置換）して**内容を読み取ってください。
+   - \`$//$\`によって文章が分断されている場合でも、人間が読むのと同じように自然な一文として繋げて解釈してください。
 
-もし問題に不備や改善点がある場合：
+2. **数式（LaTeX）の取り扱い:**
+   - 入力に含まれるLaTeX形式の数式（分数、ルートなど）は、その数学的な意味を保持したまま問題作成に使用してください。
+   - **重要:** 後続のシステム処理のため、出力に含まれる**LaTeXコマンドのバックスラッシュ（\\）は必ず二重バックスラッシュ（\\\\）にエスケープ**して記述してください。
+     - 例: \`\\frac{1}{2}\` → \`\\\\frac{1}{2}\`
+
+★ここは自由に変更可能（役割定義・ミッション）★
+あなたは学習塾のベテラン講師であり、教材の「最終動作確認」担当です。
+入力された「問題文」、「問題画像（ある場合）」、および「登録されている正解データ（ある場合）」を照合し、不備の検出または正解の生成を行ってください。
+
+■入力データについて
+・画像は添付されない場合があります（テキストのみの問題の場合）。
+・プロンプトの最下部に検証対象のデータが提示されます。
+・「CSVに登録されている正解データ」が「(未登録)」または空欄の場合は、あなたが正解を作成してください。
+
+■最重要ミッション
+1. **画像の必要性チェック**: 画像がない場合、問題文が図表を必要としているか判定してください。
+2. **解答の導出**: 問題を解き、正解を導き出してください。
+3. **正解照合・生成**:
+   - **正解データがある場合**: あなたの導き出した正解と、入力された「CSVの正解データ」を比較し、致命的な誤りがないか確認してください。
+   - **正解データがない（未登録）場合**: あなたの導き出した正解をそのまま出力してください（不備判定はスキップ）。
+
+★ここは自由に変更可能（判断基準）★
+■判断基準（優先度順）
+
+1. 画像不足の判定（最優先）
+**入力に「画像」がなく、かつ「問題文」に図表を参照する記述がある場合、即座に不備として報告してください。**
+・判定キーワード例：「図のように」「右の図」「グラフ」「表」「斜線部」「頂点A」（図がないと位置が不明な場合）
+・この場合、計算等は行わず、「解答には図表が必要です」と出力してください。
+
+2. 「図の見た目」の絶対優位性（図がある場合）
+テキストと図で配置や位置関係が食い違っている場合、**100%「図」の方を正解として扱ってください。**
+図を見て常識的に解けるなら、問題文の細かい記述ミスは「修正なし」とみなします。
+
+3. 正解データの検証（データがある場合のみ）
+あなたの答えとCSVの正解データを比較する際、**「数学的に同じ意味」であれば「一致（不備なし）」**と判定してください。
+・全角半角、スペースの有無、表記の揺れ（3.5と7/2など）は無視して一致とみなします。
+
+4. 指摘すべき致命的なエラー
+以下のいずれかに該当する場合のみ、出力を行ってください。
+・**画像の欠落**: 問題文が図を参照しているのに画像がない。
+・**模範解答の誤り**: 「CSVの正解データ」が存在し、かつその内容が明らかに間違っている。
+・**数値情報の欠落**: 画像はあるが、計算に必要な数値が足りず解が出せない。
+・**数学的な破綻**: 計算不能な矛盾がある。
+
+5. 読み取りミスの自己責任
+画像認識で数値が読み取れない場合、「自分の読み間違い」と仮定して、CSVの正解データや図の見た目から逆算し、つじつまが合う解釈を採用してください。
+
+★ここは自由に変更可能（出力形式）★
+■出力形式（厳守）
+・マークダウン記号（**など）は使用禁止。
+・プレーンテキストのみ。
+
+■出力フォーマット
+
+判定結果に応じて、以下のいずれかを出力してください。
+
+【パターンA：不備がある場合】
 【指摘事項】
-(具体的な問題点と修正案)
+[致命的なエラー]
+・内容：(以下のいずれかを記述)
+  - 「解答には図表が必要です」（画像不足の場合）
+  - 「模範解答の誤り。正しくは〇〇ですが、CSVは××となっています」
+  - 「条件不足で解けません」
+・修正案：(例：「画像をアップロードしてください」「CSVの正解1を修正してください」)
 
-解答が可能な場合（不備があっても推測可能なら含む）：
 【正解】
-(明確な答えのみ記述すること。解説は不要です。)
+(AIが算出した正しい答え。LaTeXバックスラッシュは二重にする。画像不足で解けない場合は「判別不能」と記述)
 
-※不備があっても解答できる場合は、【指摘事項】と【正解】の両方を出力してください。
-※解答不能なほど致命的な不備がある場合は、【指摘事項】のみを出力してください。`;
+【パターンB：問題がない、または正解生成のみの場合】
+修正の必要はありません
+【正解】
+(AIが算出した答えのみ記述。LaTeXバックスラッシュは二重にする)
+
+---
+■検証対象データ
+(※ここから下はコードとの接続部のため、変数名を含め変更禁止)
+
+【問題文】
+{{PROBLEM_TEXT}}
+
+【CSVに登録されている正解データ】
+{{CORRECT_ANSWER_OR_EMPTY}}`;
 
 type QuestionInput = {
   id: number;
@@ -46,8 +120,10 @@ export default function Home() {
   const [progress, setProgress] = useState(0); // 進捗率 (0-100)
   const [processingStatus, setProcessingStatus] = useState(''); // 進捗状況テキスト
   const [showSettings, setShowSettings] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
+  const [systemPrompt, setSystemPrompt] = useState(MASTER_TEMPLATE);
+  const [originalPrompt, setOriginalPrompt] = useState(MASTER_TEMPLATE);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [showMasterTemplateModal, setShowMasterTemplateModal] = useState(false);
 
   // サーバーから設定を読み込む
   useEffect(() => {
@@ -58,6 +134,7 @@ export default function Home() {
           const data = await res.json();
           if (data.prompt) {
             setSystemPrompt(data.prompt);
+            setOriginalPrompt(data.prompt);
           }
         }
       } catch (error) {
@@ -81,6 +158,7 @@ export default function Home() {
         throw new Error('Failed to save settings');
       }
       
+      setOriginalPrompt(systemPrompt);
       setShowSettings(false);
       alert('設定を保存しました（全ユーザーに適用されます）');
     } catch (error) {
@@ -431,20 +509,70 @@ export default function Home() {
               />
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
+            <div className="p-4 border-t border-gray-200 flex justify-between bg-gray-50 rounded-b-xl">
               <button
-                onClick={() => setSystemPrompt(DEFAULT_PROMPT)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+                onClick={() => setShowMasterTemplateModal(true)}
+                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors border border-blue-300"
               >
-                デフォルトに戻す
+                マスターテンプレート表示
               </button>
-              <button
-                onClick={saveSettings}
-                disabled={isSavingSettings}
-                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setSystemPrompt(originalPrompt);
+                    setShowSettings(false);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={saveSettings}
+                  disabled={isSavingSettings}
+                  className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSavingSettings && <Loader2 size={16} className="animate-spin" />}
+                  {isSavingSettings ? '保存中...' : '設定を保存して閉じる'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* マスターテンプレート表示モーダル */}
+      {showMasterTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Settings size={20} /> マスターテンプレート（参照用）
+              </h3>
+              <button 
+                onClick={() => setShowMasterTemplateModal(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
               >
-                {isSavingSettings && <Loader2 size={16} className="animate-spin" />}
-                {isSavingSettings ? '保存中...' : '設定を保存して閉じる'}
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-500 mb-4">
+                これはマスターテンプレートです。参照用として表示しています。
+              </p>
+              <textarea
+                value={MASTER_TEMPLATE}
+                readOnly
+                className="w-full h-[400px] p-4 border border-gray-300 rounded-lg font-mono text-sm leading-relaxed resize-none bg-gray-50"
+              />
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setShowMasterTemplateModal(false)}
+                className="px-6 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+              >
+                閉じる
               </button>
             </div>
           </div>

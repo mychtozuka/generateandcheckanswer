@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   try {
     // 単一の問題を受け取る形に変更
     // imageBase64: Base64文字列 (data:image/...;base64, 部分は除く)
-    const { text, imageUrl, imageBase64, mimeType: reqMimeType, model: modelName, customPrompt } = await req.json();
+    const { text, correctAnswer, imageUrl, imageBase64, mimeType: reqMimeType, model: modelName, customPrompt } = await req.json();
 
     if (!text && !imageUrl && !imageBase64) {
       return NextResponse.json({ error: '問題文または画像が必要です' }, { status: 400 });
@@ -29,22 +29,28 @@ export async function POST(req: Request) {
     // デフォルトプロンプト（データベース設定が取得できない場合の予備）
     const defaultPrompt = `入力された問題を解いて、正解を出力してください。
 
-問題文の最後に[提供された正解]が記載されている場合は、その正解が問題の正解と一致するかも検証してください。
-
 【正解】
 (答えのみ記述)
 
-[提供された正解]がある場合：
-【正解の検証】
-(提供された正解が正しいかを記述)`;
+---
+■検証対象データ
 
-    const prompt = customPrompt || defaultPrompt;
+【問題文】
+{{PROBLEM_TEXT}}
+
+【CSVに登録されている正解データ】
+{{CORRECT_ANSWER_OR_EMPTY}}`;
+
+    let prompt = customPrompt || defaultPrompt;
+
+    // プレースホルダーを実際のデータで置換
+    const problemText = text || '';
+    const correctAnswerText = correctAnswer || '(未登録)';
+    
+    prompt = prompt.replace('{{PROBLEM_TEXT}}', problemText);
+    prompt = prompt.replace('{{CORRECT_ANSWER_OR_EMPTY}}', correctAnswerText);
 
     const contentParts: any[] = [prompt];
-
-    if (text) {
-      contentParts.push(`\n\n---\n■検証対象データ\n\n【問題文】\n${text}`);
-    }
 
     // Base64データが直接渡された場合
     if (imageBase64) {
