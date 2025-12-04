@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import Papa from 'papaparse';
 import { Upload, FileText, Image as ImageIcon, Play, Loader2, CheckCircle, AlertCircle, Download, Settings, X, StopCircle, Trash2 } from 'lucide-react';
 
@@ -477,9 +478,15 @@ export default function BatchPage() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8 flex items-center justify-between border-b border-gray-200 pb-4">
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            一括チェックモード
+            CSV一括チェックモード
           </h1>
           <div className="flex gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <span>問題ごとにチェック</span>
+            </Link>
             <button
               onClick={() => setShowSettings(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -625,12 +632,15 @@ export default function BatchPage() {
                       <th className="px-4 py-3 w-24">ステータス</th>
                       <th className="px-4 py-3 w-48">問題番号</th>
                       <th className="px-4 py-3 w-48">ファイル名</th>
-                      <th className="px-4 py-3">AI回答</th>
+                      <th className="px-4 py-3">
+                        AI回答
+                        <span className="ml-2 text-xs font-normal text-gray-500">（AIの出力は必ずしも正しいとは限りません）</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item) => (
-                      <tr 
+                      <tr
                         key={item.id} 
                         style={{ backgroundColor: item.hasIssue ? '#fdf2f8' : '#ffffff' }}
                         className="hover:opacity-90"

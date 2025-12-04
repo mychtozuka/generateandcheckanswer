@@ -248,7 +248,7 @@ export default function Home() {
               href="/batch"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <span>一括チェック</span>
+              <span>CSV一括チェック</span>
               <FileText size={18} />
             </Link>
             <button
@@ -363,6 +363,7 @@ export default function Home() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-[85vh] flex flex-col">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 pb-2 border-b border-gray-100 shrink-0">
               <CheckCircle size={20} /> 解答結果
+              <span className="ml-2 text-xs font-normal text-gray-500">（AIの出力は必ずしも正しいとは限りません）</span>
             </h2>
             
             <div className="overflow-y-auto flex-1 pr-2">
