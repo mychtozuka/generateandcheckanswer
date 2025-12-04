@@ -237,7 +237,7 @@ export default function BatchPage() {
         // 問題文に正解情報を追加
         let questionText = item.csvData['問題文'] || '';
         if (correctAnswers.length > 0) {
-          questionText += '\n\n[提供された正解]:\n' + correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n');
+          questionText += '\n\n【CSVに登録されている正解データ】\n' + correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n');
         }
 
         // ファイルがある場合のみBase64エンコード
@@ -368,7 +368,7 @@ export default function BatchPage() {
         // 問題文に正解情報を追加
         let questionText = item.csvData['問題文'] || '';
         if (correctAnswers.length > 0) {
-          questionText += '\n\n[提供された正解]:\n' + correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n');
+          questionText += '\n\n【CSVに登録されている正解データ】\n' + correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n');
         }
 
         // ファイルがある場合のみBase64エンコード

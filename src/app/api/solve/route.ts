@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const contentParts: any[] = [prompt];
 
     if (text) {
-      contentParts.push(`\n\n[問題文]: ${text}`);
+      contentParts.push(`\n\n---\n■検証対象データ\n\n【問題文】\n${text}`);
     }
 
     // Base64データが直接渡された場合
