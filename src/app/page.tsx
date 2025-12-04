@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { Loader2, Upload, Send, CheckCircle, FileText, Trash2, Settings, X } from 'lucide-react';
 
@@ -243,6 +244,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              href="/batch"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <span>一括チェック</span>
+              <FileText size={18} />
+            </Link>
             <button
               onClick={() => setShowSettings(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"

@@ -15,9 +15,10 @@ export async function POST(req: Request) {
 
   try {
     // 単一の問題を受け取る形に変更
-    const { text, imageUrl, model: modelName, customPrompt } = await req.json();
+    // imageBase64: Base64文字列 (data:image/...;base64, 部分は除く)
+    const { text, imageUrl, imageBase64, mimeType: reqMimeType, model: modelName, customPrompt } = await req.json();
 
-    if (!text && !imageUrl) {
+    if (!text && !imageUrl && !imageBase64) {
       return NextResponse.json({ error: '問題文または画像が必要です' }, { status: 400 });
     }
 
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
     const defaultPrompt = `あなたはプロの学習塾講師および教材校正者です。
 入力された問題を解く前に、問題文や図表に不備（矛盾、情報不足、誤字脱字、解答不能な設定など）がないか厳密にチェックしてください。
 
+問題文の最後に[提供された正解]が記載されている場合は、その正解が問題の正解と一致するかも検証してください。
+
 以下のフォーマットに従って出力してください。
 
 もし問題に不備や改善点がある場合：
@@ -38,6 +41,10 @@ export async function POST(req: Request) {
 解答が可能な場合（不備があっても推測可能なら含む）：
 【正解】
 (明確な答えのみ記述すること。解説は不要です。)
+
+[提供された正解]がある場合：
+【正解の検証】
+(提供された正解が正しいか、誤りがある場合はその内容を記述)
 
 ※不備があっても解答できる場合は、【指摘事項】と【正解】の両方を出力してください。
 ※解答不能なほど致命的な不備がある場合は、【指摘事項】のみを出力してください。`;
@@ -50,7 +57,17 @@ export async function POST(req: Request) {
       contentParts.push(`\n\n[問題文]: ${text}`);
     }
 
-    if (imageUrl) {
+    // Base64データが直接渡された場合
+    if (imageBase64) {
+      contentParts.push({
+        inlineData: {
+          data: imageBase64,
+          mimeType: reqMimeType || 'image/jpeg'
+        }
+      });
+    }
+    // URLが渡された場合 (Supabase等)
+    else if (imageUrl) {
       try {
         const imageResp = await fetch(imageUrl);
         const arrayBuffer = await imageResp.arrayBuffer();
@@ -79,9 +96,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // リトライロジック (最大3回)
+    // リトライロジック (最大2回)
     let retries = 0;
-    const maxRetries = 3;
+    const maxRetries = 2;
     let answer = "";
 
     while (retries <= maxRetries) {
@@ -104,17 +121,25 @@ export async function POST(req: Request) {
       } catch (e: any) {
         console.error(`AI generation error (Attempt ${retries + 1}):`, e.message);
         
+        // 429 (レート制限) または quota exceeded エラーの場合は即座に失敗
+        const is429Error = e.message?.includes('429') || 
+                          e.message?.includes('Quota exceeded') || 
+                          e.message?.includes('quota');
+        
+        if (is429Error) {
+          answer = "（エラー: API制限超過。Gemini 2.5 Proは1分2回/1日50回まで。時間をおいて再試行するか、Gemini 2.5 Flashをご利用ください）";
+          break; // リトライせずに即座に終了
+        }
+        
         if (retries === maxRetries) {
           // 最終試行でも失敗した場合
-          if (e.message?.includes('429')) {
-            answer = "（エラー: リクエスト制限超過。時間を置いて再試行してください）";
-          } else if (e.message?.includes('503')) {
+          if (e.message?.includes('503')) {
             answer = "（エラー: サーバー混雑中。再試行してください）";
           } else {
             answer = `（AI生成エラー: ${e.message || '不明'}）`;
           }
         } else {
-          // リトライ待機 (指数バックオフ: 2s, 4s, 8s...)
+          // リトライ待機 (指数バックオフ: 2s, 4s...)
           const waitTime = 2000 * Math.pow(2, retries);
           console.log(`Waiting ${waitTime}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
