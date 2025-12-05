@@ -456,41 +456,86 @@ export default function BatchPage() {
           mimeType = item.file.type || (item.file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
         }
 
-        const res = await fetch('/api/solve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: questionText,
-            correctAnswer: correctAnswerText,
-            imageBase64: base64Data,
-            mimeType: mimeType,
-            model: model,
-            customPrompt: systemPrompt
-          }),
-          signal: abortControllerRef.current?.signal
-        });
+        // リトライロジック（504エラー対策）
+        let answerText = '';
+        let hasIssue = false;
+        let retryCount = 0;
+        const maxRetries = 2;
+        let lastError = null;
 
-        // 認証エラーチェック
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('認証エラー: ページを再読み込みしてください');
-        }
+        while (retryCount <= maxRetries) {
+          try {
+            const res = await fetch('/api/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: questionText,
+                correctAnswer: correctAnswerText,
+                imageBase64: base64Data,
+                mimeType: mimeType,
+                model: model,
+                customPrompt: systemPrompt
+              }),
+              signal: abortControllerRef.current?.signal
+            });
 
-        // JSON解析エラーの対策
-        let answerText;
-        try {
-          const data = await res.json();
-          answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
-        } catch (jsonError) {
-          // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
-          console.error('JSON解析エラー (handleStartBatch):', jsonError);
-          answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+            // 認証エラーチェック
+            if (res.status === 401 || res.status === 403) {
+              throw new Error('認証エラー: ページを再読み込みしてください');
+            }
+
+            // 504エラーの場合はリトライ
+            if (res.status === 504 && retryCount < maxRetries) {
+              console.log(`504エラー発生 (試行 ${retryCount + 1}/${maxRetries + 1}): ${item.key} - 再試行します`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機
+              continue;
+            }
+
+            // JSON解析エラーの対策
+            try {
+              const data = await res.json();
+              answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
+            } catch (jsonError) {
+              // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
+              console.error('JSON解析エラー (handleStartBatch):', jsonError);
+              answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+              
+              // 504の場合はリトライ
+              if (res.status === 504 && retryCount < maxRetries) {
+                console.log(`504エラー (JSON解析失敗) - 再試行 ${retryCount + 1}/${maxRetries + 1}`);
+                retryCount++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+            }
+            
+            hasIssue = answerText && (
+              answerText.includes('【指摘事項】') || 
+              answerText.includes('致命的') ||
+              answerText.includes('解答不能')
+            );
+
+            // 成功したらループを抜ける
+            break;
+
+          } catch (fetchError: any) {
+            lastError = fetchError;
+            if (fetchError.name === 'AbortError') {
+              throw fetchError; // 中止エラーはそのまま投げる
+            }
+            
+            if (retryCount < maxRetries) {
+              console.log(`ネットワークエラー発生 (試行 ${retryCount + 1}/${maxRetries + 1}): ${fetchError.message} - 再試行します`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              continue;
+            } else {
+              answerText = `ネットワークエラー: ${fetchError.message}`;
+              break;
+            }
+          }
         }
-        
-        const hasIssue = answerText && (
-          answerText.includes('【指摘事項】') || 
-          answerText.includes('致命的') ||
-          answerText.includes('解答不能')
-        );
 
         // 図表付きで不備がある場合は、gemini-3-proを使って再検証
         if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
@@ -651,41 +696,86 @@ export default function BatchPage() {
           mimeType = item.file.type || (item.file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
         }
 
-        const res = await fetch('/api/solve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: questionText,
-            correctAnswer: correctAnswerText,
-            imageBase64: base64Data,
-            mimeType: mimeType,
-            model: model,
-            customPrompt: systemPrompt
-          }),
-          signal: abortControllerRef.current?.signal
-        });
+        // リトライロジック（504エラー対策）
+        let answerText = '';
+        let hasIssue = false;
+        let retryCount = 0;
+        const maxRetries = 2;
+        let lastError = null;
 
-        // 認証エラーチェック
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('認証エラー: ページを再読み込みしてください');
-        }
+        while (retryCount <= maxRetries) {
+          try {
+            const res = await fetch('/api/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: questionText,
+                correctAnswer: correctAnswerText,
+                imageBase64: base64Data,
+                mimeType: mimeType,
+                model: model,
+                customPrompt: systemPrompt
+              }),
+              signal: abortControllerRef.current?.signal
+            });
 
-        // JSON解析エラーの対策
-        let answerText;
-        try {
-          const data = await res.json();
-          answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
-        } catch (jsonError) {
-          // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
-          console.error('JSON解析エラー (handleRecheck):', jsonError);
-          answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+            // 認証エラーチェック
+            if (res.status === 401 || res.status === 403) {
+              throw new Error('認証エラー: ページを再読み込みしてください');
+            }
+
+            // 504エラーの場合はリトライ
+            if (res.status === 504 && retryCount < maxRetries) {
+              console.log(`504エラー発生 (再チェック - 試行 ${retryCount + 1}/${maxRetries + 1}): ${item.key} - 再試行します`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機
+              continue;
+            }
+
+            // JSON解析エラーの対策
+            try {
+              const data = await res.json();
+              answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
+            } catch (jsonError) {
+              // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
+              console.error('JSON解析エラー (handleRecheck):', jsonError);
+              answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+              
+              // 504の場合はリトライ
+              if (res.status === 504 && retryCount < maxRetries) {
+                console.log(`504エラー (JSON解析失敗) - 再試行 ${retryCount + 1}/${maxRetries + 1}`);
+                retryCount++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+            }
+            
+            hasIssue = answerText && (
+              answerText.includes('【指摘事項】') || 
+              answerText.includes('致命的') ||
+              answerText.includes('解答不能')
+            );
+
+            // 成功したらループを抜ける
+            break;
+
+          } catch (fetchError: any) {
+            lastError = fetchError;
+            if (fetchError.name === 'AbortError') {
+              throw fetchError; // 中止エラーはそのまま投げる
+            }
+            
+            if (retryCount < maxRetries) {
+              console.log(`ネットワークエラー発生 (再チェック - 試行 ${retryCount + 1}/${maxRetries + 1}): ${fetchError.message} - 再試行します`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              continue;
+            } else {
+              answerText = `ネットワークエラー: ${fetchError.message}`;
+              break;
+            }
+          }
         }
-        
-        const hasIssue = answerText && (
-          answerText.includes('【指摘事項】') || 
-          answerText.includes('致命的') ||
-          answerText.includes('解答不能')
-        );
 
         // 図表付きで不備がある場合は、gemini-3-proを使って再検証
         if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
