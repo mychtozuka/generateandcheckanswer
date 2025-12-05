@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
+  // APIルートは認証をスキップして、長時間放置後のエラーを防ぐ
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   const basicAuth = req.headers.get('authorization');
 
   if (basicAuth) {

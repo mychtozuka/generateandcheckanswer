@@ -5,6 +5,11 @@ import Link from 'next/link';
 import Papa from 'papaparse';
 import { Upload, FileText, Image as ImageIcon, Play, Loader2, CheckCircle, AlertCircle, Download, Settings, X, StopCircle, Trash2 } from 'lucide-react';
 
+// モデル定数の定義
+const MODEL_FLASH = 'gemini-2.5-flash'; // ユーザー選択用（高速）
+const MODEL_PRO = 'gemini-2.5-pro'; // ユーザー選択用（高精度）
+const MODEL_VERIFIER = 'gemini-3-pro-preview'; // 再検証用最強モデル
+
 const MASTER_TEMPLATE = `# 前提条件とデータ処理ルール
 (ここは必要に応じて調整可能ですが、LaTeXエスケープと$//$無視は維持推奨)
 
@@ -128,7 +133,7 @@ export default function BatchPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [showMasterTemplateModal, setShowMasterTemplateModal] = useState(false);
-  const [model, setModel] = useState('gemini-2.5-pro');
+  const [model, setModel] = useState(MODEL_PRO);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // デバッグ用: resourceFiles の変更を監視
@@ -180,21 +185,85 @@ export default function BatchPage() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  // ディレクトリを再帰的にスキャンするヘルパー関数
+  const scanEntry = (entry: any): Promise<File[]> => {
+    return new Promise((resolve) => {
+      if (entry.isFile) {
+        entry.file((file: File) => {
+          resolve([file]);
+        }, (err: any) => {
+          console.warn('File read error:', err);
+          resolve([]);
+        });
+      } else if (entry.isDirectory) {
+        const dirReader = entry.createReader();
+        const allFiles: File[] = [];
+        
+        const readEntries = () => {
+          dirReader.readEntries(async (entries: any[]) => {
+            if (entries.length === 0) {
+              resolve(allFiles);
+            } else {
+              const filesFromEntries = await Promise.all(entries.map(scanEntry));
+              allFiles.push(...filesFromEntries.flat());
+              readEntries(); // Continue reading until empty
+            }
+          }, (err: any) => {
+             console.warn('Directory read error:', err);
+             resolve(allFiles);
+          });
+        };
+        readEntries();
+      } else {
+        resolve([]);
+      }
+    });
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     console.log('=== handleDrop 呼び出し ===');
-    console.log('e.dataTransfer.files:', e.dataTransfer.files);
-    console.log('e.dataTransfer.items:', e.dataTransfer.items);
-    console.log('files.length:', e.dataTransfer.files?.length);
-    console.log('items.length:', e.dataTransfer.items?.length);
+    
+    const files: File[] = [];
+    
+    // items プロパティを優先して使用 (フォルダ対応)
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      console.log(`items detected: ${e.dataTransfer.items.length}`);
+      const entries: any[] = [];
+      
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
+        if (item.kind === 'file') {
+          // webkitGetAsEntry は非標準だが主要ブラウザでサポート
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          if (entry) {
+            entries.push(entry);
+          } else {
+            // フォールバック
+            const file = item.getAsFile();
+            if (file) files.push(file);
+          }
+        }
+      }
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      console.log(`✅ ドロップされたファイル数: ${filesArray.length}`);
-      console.log('ファイル名:', filesArray.map(f => f.name));
-      processFiles(filesArray);
+      if (entries.length > 0) {
+        console.log(`Processing ${entries.length} entries recursively...`);
+        const recursiveFiles = await Promise.all(entries.map(scanEntry));
+        files.push(...recursiveFiles.flat());
+      }
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // フォールバック
+      console.log(`files detected: ${e.dataTransfer.files.length}`);
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        files.push(e.dataTransfer.files[i]);
+      }
+    }
+
+    if (files.length > 0) {
+      console.log(`✅ ドロップされたファイル数 (展開後): ${files.length}`);
+      processFiles(files);
     } else {
       console.log('❌ ドロップされたファイルがありません');
     }
@@ -229,9 +298,13 @@ export default function BatchPage() {
     console.log(`新規リソース: ${newResources.length}個`);
     console.log(`既存リソース: ${resourceFiles.length}個`);
 
-    let updatedResources = resourceFiles;
+    let updatedResources = [...resourceFiles];
     if (newResources.length > 0) {
-      updatedResources = [...resourceFiles, ...newResources];
+      // 重複排除: 同名のファイルは新しいもので上書き
+      const resourceMap = new Map(resourceFiles.map(f => [f.name, f]));
+      newResources.forEach(f => resourceMap.set(f.name, f));
+      updatedResources = Array.from(resourceMap.values());
+
       console.log(`結合後のリソース: ${updatedResources.length}個`);
       setResourceFiles(updatedResources);
       console.log('✅ setResourceFiles 実行完了');
@@ -397,14 +470,56 @@ export default function BatchPage() {
           signal: abortControllerRef.current?.signal
         });
 
-        const data = await res.json();
+        // 認証エラーチェック
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('認証エラー: ページを再読み込みしてください');
+        }
+
+        // JSON解析エラーの対策
+        let answerText;
+        try {
+          const data = await res.json();
+          answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
+        } catch (jsonError) {
+          // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
+          console.error('JSON解析エラー (handleStartBatch):', jsonError);
+          answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+        }
         
-        const answerText = res.ok ? data.answer : `Error: ${data.error}`;
         const hasIssue = answerText && (
           answerText.includes('【指摘事項】') || 
           answerText.includes('致命的') ||
           answerText.includes('解答不能')
         );
+
+        // 図表付きで不備がある場合は、gemini-3-proを使って再検証
+        if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
+          console.log(`図表付き問題で不備検出: ${item.key} - ${MODEL_VERIFIER}で再検証します`);
+          
+          try {
+            const recheckRes = await fetch('/api/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: questionText,
+                correctAnswer: correctAnswerText,
+                imageBase64: base64Data,
+                mimeType: mimeType,
+                model: MODEL_VERIFIER,
+                customPrompt: systemPrompt
+              }),
+              signal: abortControllerRef.current?.signal
+            });
+
+            if (recheckRes.ok) {
+              const recheckData = await recheckRes.json();
+              answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+            }
+          } catch (recheckError) {
+            console.error(`${MODEL_VERIFIER}での再検証に失敗:`, recheckError);
+            // 元の結果を維持
+          }
+        }
         
         setItems(prev => prev.map(p => p.id === item.id ? { 
           ...p, 
@@ -530,14 +645,56 @@ export default function BatchPage() {
           signal: abortControllerRef.current?.signal
         });
 
-        const data = await res.json();
+        // 認証エラーチェック
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('認証エラー: ページを再読み込みしてください');
+        }
+
+        // JSON解析エラーの対策
+        let answerText;
+        try {
+          const data = await res.json();
+          answerText = res.ok ? data.answer : `Error: ${data.error || 'APIエラー'}`;
+        } catch (jsonError) {
+          // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
+          console.error('JSON解析エラー (handleRecheck):', jsonError);
+          answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
+        }
         
-        const answerText = res.ok ? data.answer : `Error: ${data.error}`;
         const hasIssue = answerText && (
           answerText.includes('【指摘事項】') || 
           answerText.includes('致命的') ||
           answerText.includes('解答不能')
         );
+
+        // 図表付きで不備がある場合は、gemini-3-proを使って再検証
+        if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
+          console.log(`図表付き問題で不備検出 (再チェック): ${item.key} - ${MODEL_VERIFIER}で再検証します`);
+          
+          try {
+            const recheckRes = await fetch('/api/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: questionText,
+                correctAnswer: correctAnswerText,
+                imageBase64: base64Data,
+                mimeType: mimeType,
+                model: MODEL_VERIFIER,
+                customPrompt: systemPrompt
+              }),
+              signal: abortControllerRef.current?.signal
+            });
+
+            if (recheckRes.ok) {
+              const recheckData = await recheckRes.json();
+              answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+            }
+          } catch (recheckError) {
+            console.error(`${MODEL_VERIFIER}での再検証に失敗:`, recheckError);
+            // 元の結果を維持
+          }
+        }
         
         setItems(prev => prev.map(p => p.id === item.id ? { 
           ...p, 
@@ -720,8 +877,8 @@ export default function BatchPage() {
                   disabled={processing}
                   className="p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white disabled:bg-gray-100"
                 >
-                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (高精度)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速)</option>
+                  <option value={MODEL_PRO}>Gemini 2.5 Pro (高精度)</option>
+                  <option value={MODEL_FLASH}>Gemini 2.5 Flash (高速)</option>
                 </select>
                 {/* チェック開始 or 再チェックボタン */}
                 {items.filter(i => i.status === 'waiting' || i.status === 'no_file').length === 0 && items.some(i => i.status === 'completed' || i.status === 'error') ? (
