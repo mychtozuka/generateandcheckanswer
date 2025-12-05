@@ -131,6 +131,11 @@ export default function BatchPage() {
   const [model, setModel] = useState('gemini-2.5-pro');
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // デバッグ用: resourceFiles の変更を監視
+  useEffect(() => {
+    console.log(`resourceFiles state 更新: ${resourceFiles.length}個`, resourceFiles.map(f => f.name));
+  }, [resourceFiles]);
+
   // サーバーからプロンプト設定を読み込む
   useEffect(() => {
     const fetchPrompt = async () => {
@@ -175,21 +180,53 @@ export default function BatchPage() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      console.log(`ドロップされたファイル数: ${filesArray.length}`, filesArray.map(f => f.name));
-      processFiles(filesArray);
-      e.dataTransfer.clearData();
+    console.log('=== handleDrop 呼び出し ===');
+    console.log('e.dataTransfer.files:', e.dataTransfer.files);
+    console.log('e.dataTransfer.items:', e.dataTransfer.items);
+    console.log('files.length:', e.dataTransfer.files?.length);
+    console.log('items.length:', e.dataTransfer.items?.length);
+
+    // DataTransferItemList から File を取得
+    const files: File[] = [];
+    
+    if (e.dataTransfer.items) {
+      // DataTransferItemList を使用（より確実）
+      const items = Array.from(e.dataTransfer.items);
+      console.log(`items配列の長さ: ${items.length}`);
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+    } else if (e.dataTransfer.files) {
+      // フォールバック: FileList を使用
+      files.push(...Array.from(e.dataTransfer.files));
+    }
+
+    console.log(`✅ ドロップされたファイル数: ${files.length}`);
+    console.log('ファイル名:', files.map(f => f.name));
+
+    if (files.length > 0) {
+      processFiles(files);
+    } else {
+      console.log('❌ ドロップされたファイルがありません');
     }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // ドロップ可能であることを示す
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -198,26 +235,40 @@ export default function BatchPage() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('handleFileSelect 呼び出し');
+    console.log('e.target.files:', e.target.files);
+    console.log('e.target.files?.length:', e.target.files?.length);
+    
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
-      console.log(`選択されたファイル数: ${filesArray.length}`, filesArray.map(f => f.name));
+      console.log(`✅ 選択されたファイル数: ${filesArray.length}`);
+      console.log('ファイル名一覧:', filesArray.map(f => f.name));
       processFiles(filesArray);
+      // input要素をリセット（同じファイルを再選択可能にする）
+      e.target.value = '';
+    } else {
+      console.log('❌ ファイルが選択されていません');
     }
   };
 
   const processFiles = (files: File[]) => {
-    console.log(`processFiles呼び出し: ${files.length}個のファイル`, files.map(f => f.name));
+    console.log('=== processFiles 開始 ===');
+    console.log(`受け取ったファイル数: ${files.length}`);
+    console.log('ファイル一覧:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
     
     const newCsv = files.find(f => f.name.endsWith('.csv'));
     const newResources = files.filter(f => !f.name.endsWith('.csv'));
 
-    console.log(`CSV: ${newCsv?.name || 'なし'}, リソース: ${newResources.length}個`);
+    console.log(`CSV: ${newCsv?.name || 'なし'}`);
+    console.log(`新規リソース: ${newResources.length}個`);
+    console.log(`既存リソース: ${resourceFiles.length}個`);
 
     let updatedResources = resourceFiles;
     if (newResources.length > 0) {
       updatedResources = [...resourceFiles, ...newResources];
+      console.log(`結合後のリソース: ${updatedResources.length}個`);
       setResourceFiles(updatedResources);
-      console.log(`リソースファイル更新: 合計${updatedResources.length}個`);
+      console.log('✅ setResourceFiles 実行完了');
     }
 
     if (newCsv) {
@@ -228,6 +279,7 @@ export default function BatchPage() {
       console.log('既存CSVで再マッチング実行');
       parseCsv(csvFile, updatedResources);
     }
+    console.log('=== processFiles 終了 ===');
   };
 
   const parseCsv = (file: File, resources: File[]) => {
