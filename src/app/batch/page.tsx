@@ -528,6 +528,26 @@ export default function BatchPage() {
           hasIssue: hasIssue
         } : p));
 
+        // Supabaseに結果を保存（非同期で実行し、エラーは無視）
+        try {
+          await fetch('/api/batch-results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              result: {
+                key: item.key,
+                fileName: item.fileName,
+                csvData: item.csvData,
+                answer: answerText,
+                hasIssue: hasIssue,
+                status: res.ok ? 'completed' : 'error'
+              }
+            })
+          });
+        } catch (dbError) {
+          console.error('DB保存エラー（処理は継続）:', dbError);
+        }
+
       } catch (error: any) {
         // 中止された場合はエラーとして記録しない
         if (error.name === 'AbortError') {
@@ -702,6 +722,26 @@ export default function BatchPage() {
           answer: answerText,
           hasIssue: hasIssue
         } : p));
+
+        // Supabaseに結果を保存（非同期で実行し、エラーは無視）
+        try {
+          await fetch('/api/batch-results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              result: {
+                key: item.key,
+                fileName: item.fileName,
+                csvData: item.csvData,
+                answer: answerText,
+                hasIssue: hasIssue,
+                status: res.ok ? 'completed' : 'error'
+              }
+            })
+          });
+        } catch (dbError) {
+          console.error('DB保存エラー（処理は継続）:', dbError);
+        }
 
       } catch (error: any) {
         // 中止された場合はエラーとして記録しない
