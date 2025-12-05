@@ -133,7 +133,7 @@ export default function BatchPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [showMasterTemplateModal, setShowMasterTemplateModal] = useState(false);
-  const [model, setModel] = useState(MODEL_PRO);
+  const [model, setModel] = useState(MODEL_FLASH);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // デバッグ用: resourceFiles の変更を監視
