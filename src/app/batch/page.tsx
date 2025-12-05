@@ -180,24 +180,44 @@ export default function BatchPage() {
     e.stopPropagation();
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(Array.from(e.dataTransfer.files));
+      const filesArray = Array.from(e.dataTransfer.files);
+      console.log(`ドロップされたファイル数: ${filesArray.length}`, filesArray.map(f => f.name));
+      processFiles(filesArray);
+      e.dataTransfer.clearData();
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      processFiles(Array.from(e.target.files));
+      const filesArray = Array.from(e.target.files);
+      console.log(`選択されたファイル数: ${filesArray.length}`, filesArray.map(f => f.name));
+      processFiles(filesArray);
     }
   };
 
   const processFiles = (files: File[]) => {
+    console.log(`processFiles呼び出し: ${files.length}個のファイル`, files.map(f => f.name));
+    
     const newCsv = files.find(f => f.name.endsWith('.csv'));
     const newResources = files.filter(f => !f.name.endsWith('.csv'));
+
+    console.log(`CSV: ${newCsv?.name || 'なし'}, リソース: ${newResources.length}個`);
 
     let updatedResources = resourceFiles;
     if (newResources.length > 0) {
       updatedResources = [...resourceFiles, ...newResources];
       setResourceFiles(updatedResources);
+      console.log(`リソースファイル更新: 合計${updatedResources.length}個`);
     }
 
     if (newCsv) {
@@ -205,6 +225,7 @@ export default function BatchPage() {
       parseCsv(newCsv, updatedResources);
     } else if (csvFile && newResources.length > 0) {
       // CSVが既に読み込まれていれば再マッチング
+      console.log('既存CSVで再マッチング実行');
       parseCsv(csvFile, updatedResources);
     }
   };
@@ -606,7 +627,8 @@ export default function BatchPage() {
         <div className="grid grid-cols-1 gap-6">
           {/* アップロードエリア */}
           <div 
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
             onDrop={handleDrop}
             className="bg-white p-8 rounded-xl shadow-sm border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors text-center"
           >
@@ -623,6 +645,7 @@ export default function BatchPage() {
               <input 
                 type="file" 
                 multiple 
+                accept=".csv,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp"
                 onChange={handleFileSelect} 
                 className="hidden" 
                 id="batch-file-input" 
