@@ -180,7 +180,7 @@ export default function BatchPage() {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -190,48 +190,14 @@ export default function BatchPage() {
     console.log('files.length:', e.dataTransfer.files?.length);
     console.log('items.length:', e.dataTransfer.items?.length);
 
-    // DataTransferItemList から File を取得
-    const files: File[] = [];
-    
-    if (e.dataTransfer.items) {
-      // DataTransferItemList を使用（より確実）
-      const items = Array.from(e.dataTransfer.items);
-      console.log(`items配列の長さ: ${items.length}`);
-      
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) {
-            files.push(file);
-          }
-        }
-      }
-    } else if (e.dataTransfer.files) {
-      // フォールバック: FileList を使用
-      files.push(...Array.from(e.dataTransfer.files));
-    }
-
-    console.log(`✅ ドロップされたファイル数: ${files.length}`);
-    console.log('ファイル名:', files.map(f => f.name));
-
-    if (files.length > 0) {
-      processFiles(files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArray = Array.from(e.dataTransfer.files);
+      console.log(`✅ ドロップされたファイル数: ${filesArray.length}`);
+      console.log('ファイル名:', filesArray.map(f => f.name));
+      processFiles(filesArray);
     } else {
       console.log('❌ ドロップされたファイルがありません');
     }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // ドロップ可能であることを示す
-    e.dataTransfer.dropEffect = 'copy';
-  };
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -679,8 +645,7 @@ export default function BatchPage() {
         <div className="grid grid-cols-1 gap-6">
           {/* アップロードエリア */}
           <div 
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragEnter}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onDrop={handleDrop}
             className="bg-white p-8 rounded-xl shadow-sm border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors text-center"
           >
