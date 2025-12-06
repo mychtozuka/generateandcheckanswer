@@ -50,18 +50,19 @@ export async function POST(req: Request) {
     prompt = prompt.replace('{{PROBLEM_TEXT}}', problemText);
     prompt = prompt.replace('{{CORRECT_ANSWER_OR_EMPTY}}', correctAnswerText);
 
-    const contentParts: any[] = [prompt];
+    const contentParts: any[] = [{ text: prompt }];
 
-    // Base64データが直接渡された場合
+    // Base64データが直接渡された場合 → inlineDataを使用
     if (imageBase64) {
+      const mimeType = reqMimeType || 'application/pdf';
       contentParts.push({
         inlineData: {
           data: imageBase64,
-          mimeType: reqMimeType || 'image/jpeg'
+          mimeType: mimeType
         }
       });
     }
-    // URLが渡された場合 (Supabase等)
+    // URLが渡された場合 (Supabase等) → fetchしてinlineDataに変換
     else if (imageUrl) {
       try {
         const imageResp = await fetch(imageUrl);
@@ -98,9 +99,17 @@ export async function POST(req: Request) {
 
     while (retries <= maxRetries) {
       try {
-        // AI実行
-        const result = await model.generateContent(contentParts);
-        answer = result.response.text();
+        // AI実行 (ストリーミング使用)
+        const result = await model.generateContentStream(contentParts);
+        
+        // ストリーミングレスポンスを全て受信
+        let fullText = "";
+        for await (const chunk of result.stream) {
+          const chunkText = chunk.text();
+          fullText += chunkText;
+        }
+        
+        answer = fullText;
 
         // 履歴保存 (非同期で待たない)
         supabase

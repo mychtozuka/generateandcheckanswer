@@ -458,14 +458,15 @@ export default function BatchPage() {
 
         // リトライロジック（504エラー対策）
         let answerText = '';
-        let hasIssue = false;
+        let hasIssue: boolean = false;
         let retryCount = 0;
         const maxRetries = 2;
         let lastError = null;
+        let res: Response | null = null;
 
         while (retryCount <= maxRetries) {
           try {
-            const res = await fetch('/api/solve', {
+            res = await fetch('/api/solve', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -510,11 +511,11 @@ export default function BatchPage() {
               }
             }
             
-            hasIssue = answerText && (
+            hasIssue = !!(answerText && (
               answerText.includes('【指摘事項】') || 
               answerText.includes('致命的') ||
               answerText.includes('解答不能')
-            );
+            ));
 
             // 成功したらループを抜ける
             break;
@@ -537,9 +538,9 @@ export default function BatchPage() {
           }
         }
 
-        // 図表付きで不備がある場合は、gemini-3-proを使って再検証
-        if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
-          console.log(`図表付き問題で不備検出: ${item.key} - ${MODEL_VERIFIER}で再検証します`);
+        // 不備がある場合は、gemini-3-pro-previewを使って再検証
+        if (hasIssue && model !== MODEL_VERIFIER) {
+          console.log(`不備検出: ${item.key} - ${MODEL_VERIFIER}で再検証します`);
           
           try {
             const recheckRes = await fetch('/api/solve', {
@@ -568,7 +569,7 @@ export default function BatchPage() {
         
         setItems(prev => prev.map(p => p.id === item.id ? { 
           ...p, 
-          status: res.ok ? 'completed' : 'error',
+          status: (res?.ok) ? 'completed' : 'error',
           answer: answerText,
           hasIssue: hasIssue
         } : p));
@@ -585,7 +586,7 @@ export default function BatchPage() {
                 csvData: item.csvData,
                 answer: answerText,
                 hasIssue: hasIssue,
-                status: res.ok ? 'completed' : 'error'
+                status: (res?.ok) ? 'completed' : 'error'
               }
             })
           });
@@ -698,14 +699,15 @@ export default function BatchPage() {
 
         // リトライロジック（504エラー対策）
         let answerText = '';
-        let hasIssue = false;
+        let hasIssue: boolean = false;
         let retryCount = 0;
         const maxRetries = 2;
         let lastError = null;
+        let res: Response | null = null;
 
         while (retryCount <= maxRetries) {
           try {
-            const res = await fetch('/api/solve', {
+            res = await fetch('/api/solve', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -750,11 +752,11 @@ export default function BatchPage() {
               }
             }
             
-            hasIssue = answerText && (
+            hasIssue = !!(answerText && (
               answerText.includes('【指摘事項】') || 
               answerText.includes('致命的') ||
               answerText.includes('解答不能')
-            );
+            ));
 
             // 成功したらループを抜ける
             break;
@@ -777,9 +779,9 @@ export default function BatchPage() {
           }
         }
 
-        // 図表付きで不備がある場合は、gemini-3-proを使って再検証
-        if (hasIssue && base64Data && model !== MODEL_VERIFIER) {
-          console.log(`図表付き問題で不備検出 (再チェック): ${item.key} - ${MODEL_VERIFIER}で再検証します`);
+        // 不備がある場合は、gemini-3-pro-previewを使って再検証
+        if (hasIssue && model !== MODEL_VERIFIER) {
+          console.log(`不備検出 (再チェック): ${item.key} - ${MODEL_VERIFIER}で再検証します`);
           
           try {
             const recheckRes = await fetch('/api/solve', {
@@ -808,7 +810,7 @@ export default function BatchPage() {
         
         setItems(prev => prev.map(p => p.id === item.id ? { 
           ...p, 
-          status: res.ok ? 'completed' : 'error',
+          status: (res?.ok) ? 'completed' : 'error',
           answer: answerText,
           hasIssue: hasIssue
         } : p));
@@ -825,7 +827,7 @@ export default function BatchPage() {
                 csvData: item.csvData,
                 answer: answerText,
                 hasIssue: hasIssue,
-                status: res.ok ? 'completed' : 'error'
+                status: (res?.ok) ? 'completed' : 'error'
               }
             })
           });
