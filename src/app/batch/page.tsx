@@ -514,7 +514,9 @@ export default function BatchPage() {
             hasIssue = !!(answerText && (
               answerText.includes('【指摘事項】') || 
               answerText.includes('致命的') ||
-              answerText.includes('解答不能')
+              answerText.includes('解答不能') ||
+              answerText.includes('模範解答の誤り') ||
+              answerText.includes('修正案')
             ));
 
             // 成功したらループを抜ける
@@ -755,7 +757,9 @@ export default function BatchPage() {
             hasIssue = !!(answerText && (
               answerText.includes('【指摘事項】') || 
               answerText.includes('致命的') ||
-              answerText.includes('解答不能')
+              answerText.includes('解答不能') ||
+              answerText.includes('模範解答の誤り') ||
+              answerText.includes('修正案')
             ));
 
             // 成功したらループを抜ける
