@@ -519,6 +519,17 @@ export default function BatchPage() {
               answerText.includes('修正案')
             ));
 
+            // デバッグ: hasIssue検出状況をログ出力
+            if (answerText) {
+              console.log(`[${item.key}] hasIssue判定:`, hasIssue);
+              console.log(`  - 【指摘事項】: ${answerText.includes('【指摘事項】')}`);
+              console.log(`  - 致命的: ${answerText.includes('致命的')}`);
+              console.log(`  - 解答不能: ${answerText.includes('解答不能')}`);
+              console.log(`  - 模範解答の誤り: ${answerText.includes('模範解答の誤り')}`);
+              console.log(`  - 修正案: ${answerText.includes('修正案')}`);
+              console.log(`  - 現在のモデル: ${model}, MODEL_VERIFIER: ${MODEL_VERIFIER}`);
+            }
+
             // 成功したらループを抜ける
             break;
 
@@ -544,28 +555,58 @@ export default function BatchPage() {
         if (hasIssue && model !== MODEL_VERIFIER) {
           console.log(`不備検出: ${item.key} - ${MODEL_VERIFIER}で再検証します`);
           
-          try {
-            const recheckRes = await fetch('/api/solve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                text: questionText,
-                correctAnswer: correctAnswerText,
-                imageBase64: base64Data,
-                mimeType: mimeType,
-                model: MODEL_VERIFIER,
-                customPrompt: systemPrompt
-              }),
-              signal: abortControllerRef.current?.signal
-            });
+          let recheckRetries = 0;
+          const recheckMaxRetries = 2;
+          let recheckSuccess = false;
 
-            if (recheckRes.ok) {
-              const recheckData = await recheckRes.json();
-              answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+          while (recheckRetries <= recheckMaxRetries) {
+            try {
+              const recheckRes = await fetch('/api/solve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: questionText,
+                  correctAnswer: correctAnswerText,
+                  imageBase64: base64Data,
+                  mimeType: mimeType,
+                  model: MODEL_VERIFIER,
+                  customPrompt: systemPrompt
+                }),
+                signal: abortControllerRef.current?.signal
+              });
+
+              // 504エラーの場合はリトライ
+              if (recheckRes.status === 504 && recheckRetries < recheckMaxRetries) {
+                console.log(`${MODEL_VERIFIER}再検証で504エラー (試行 ${recheckRetries + 1}/${recheckMaxRetries + 1}) - 再試行します`);
+                recheckRetries++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+
+              if (recheckRes.ok) {
+                const recheckData = await recheckRes.json();
+                answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+                recheckSuccess = true;
+              } else {
+                console.log(`${MODEL_VERIFIER}再検証でエラー (ステータス: ${recheckRes.status}) - 元の結果を維持`);
+              }
+              break;
+
+            } catch (recheckError: any) {
+              console.error(`${MODEL_VERIFIER}での再検証に失敗 (試行 ${recheckRetries + 1}):`, recheckError);
+              
+              if (recheckRetries < recheckMaxRetries) {
+                recheckRetries++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+              // 最終試行でも失敗した場合は元の結果を維持
+              break;
             }
-          } catch (recheckError) {
-            console.error(`${MODEL_VERIFIER}での再検証に失敗:`, recheckError);
-            // 元の結果を維持
+          }
+
+          if (!recheckSuccess) {
+            console.log(`${MODEL_VERIFIER}再検証を${recheckMaxRetries + 1}回試行しましたが失敗 - 元の結果を維持します`);
           }
         }
         
@@ -762,6 +803,17 @@ export default function BatchPage() {
               answerText.includes('修正案')
             ));
 
+            // デバッグ: hasIssue検出状況をログ出力 (再チェック)
+            if (answerText) {
+              console.log(`[再チェック: ${item.key}] hasIssue判定:`, hasIssue);
+              console.log(`  - 【指摘事項】: ${answerText.includes('【指摘事項】')}`);
+              console.log(`  - 致命的: ${answerText.includes('致命的')}`);
+              console.log(`  - 解答不能: ${answerText.includes('解答不能')}`);
+              console.log(`  - 模範解答の誤り: ${answerText.includes('模範解答の誤り')}`);
+              console.log(`  - 修正案: ${answerText.includes('修正案')}`);
+              console.log(`  - 現在のモデル: ${model}, MODEL_VERIFIER: ${MODEL_VERIFIER}`);
+            }
+
             // 成功したらループを抜ける
             break;
 
@@ -787,28 +839,58 @@ export default function BatchPage() {
         if (hasIssue && model !== MODEL_VERIFIER) {
           console.log(`不備検出 (再チェック): ${item.key} - ${MODEL_VERIFIER}で再検証します`);
           
-          try {
-            const recheckRes = await fetch('/api/solve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                text: questionText,
-                correctAnswer: correctAnswerText,
-                imageBase64: base64Data,
-                mimeType: mimeType,
-                model: MODEL_VERIFIER,
-                customPrompt: systemPrompt
-              }),
-              signal: abortControllerRef.current?.signal
-            });
+          let recheckRetries = 0;
+          const recheckMaxRetries = 2;
+          let recheckSuccess = false;
 
-            if (recheckRes.ok) {
-              const recheckData = await recheckRes.json();
-              answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+          while (recheckRetries <= recheckMaxRetries) {
+            try {
+              const recheckRes = await fetch('/api/solve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: questionText,
+                  correctAnswer: correctAnswerText,
+                  imageBase64: base64Data,
+                  mimeType: mimeType,
+                  model: MODEL_VERIFIER,
+                  customPrompt: systemPrompt
+                }),
+                signal: abortControllerRef.current?.signal
+              });
+
+              // 504エラーの場合はリトライ
+              if (recheckRes.status === 504 && recheckRetries < recheckMaxRetries) {
+                console.log(`${MODEL_VERIFIER}再検証で504エラー (再チェック - 試行 ${recheckRetries + 1}/${recheckMaxRetries + 1}) - 再試行します`);
+                recheckRetries++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+
+              if (recheckRes.ok) {
+                const recheckData = await recheckRes.json();
+                answerText = `[${MODEL_VERIFIER}で再検証]\n${recheckData.answer}`;
+                recheckSuccess = true;
+              } else {
+                console.log(`${MODEL_VERIFIER}再検証でエラー (再チェック - ステータス: ${recheckRes.status}) - 元の結果を維持`);
+              }
+              break;
+
+            } catch (recheckError: any) {
+              console.error(`${MODEL_VERIFIER}での再検証に失敗 (再チェック - 試行 ${recheckRetries + 1}):`, recheckError);
+              
+              if (recheckRetries < recheckMaxRetries) {
+                recheckRetries++;
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                continue;
+              }
+              // 最終試行でも失敗した場合は元の結果を維持
+              break;
             }
-          } catch (recheckError) {
-            console.error(`${MODEL_VERIFIER}での再検証に失敗:`, recheckError);
-            // 元の結果を維持
+          }
+
+          if (!recheckSuccess) {
+            console.log(`${MODEL_VERIFIER}再検証を${recheckMaxRetries + 1}回試行しましたが失敗 (再チェック) - 元の結果を維持します`);
           }
         }
         
