@@ -340,6 +340,21 @@ export default function Home() {
           </div>
         </header>
 
+        <nav className="mb-6 flex items-center gap-4">
+          <Link
+            href="/"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+          >
+            Generate&CheckAnswer
+          </Link>
+          <Link
+            href="/generate-question"
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50"
+          >
+            GenerateQuestion
+          </Link>
+        </nav>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* 左カラム：入力エリア */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-[85vh] flex flex-col">
