@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-export default function GenerateQuestion(): JSX.Element {
+export default function GenerateQuestion(): React.ReactElement {
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("normal");
   const [question, setQuestion] = useState("");
