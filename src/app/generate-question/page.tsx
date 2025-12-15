@@ -110,6 +110,60 @@ export default function GenerateQuestionPage() {
     return () => window.removeEventListener('paste', handlePaste as EventListener);
   }, []);
 
+  // 右クリックで表示するカスタムコンテキストメニューの状態
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
+  const dropAreaRef = useRef<HTMLLabelElement | null>(null);
+
+  useEffect(() => {
+    const hide = () => setContextMenu((s) => ({ ...s, visible: false }));
+    window.addEventListener('scroll', hide);
+    window.addEventListener('resize', hide);
+    window.addEventListener('click', hide);
+    return () => {
+      window.removeEventListener('scroll', hide);
+      window.removeEventListener('resize', hide);
+      window.removeEventListener('click', hide);
+    };
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
+  };
+
+  // コンテキストメニューから貼り付けを行う
+  const handleContextPaste = async () => {
+    setContextMenu((s) => ({ ...s, visible: false }));
+    try {
+      // 最新ブラウザ向け API
+      if (navigator.clipboard && (navigator.clipboard as any).read) {
+        const items = await (navigator.clipboard as any).read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const file = new File([blob], `clipboard-image.${blob.type.split('/')[1] || 'png'}`, { type: blob.type });
+              processFile(file);
+              return;
+            }
+          }
+        }
+        alert('クリップボードに画像が見つかりませんでした');
+        return;
+      }
+
+      // フォールバック: 古いブラウザでは read() が無いため、ユーザーに Ctrl+V を案内
+      alert('このブラウザでは右クリックからの貼り付けはサポートされていません。Ctrl+V または右クリックメニューの代替をお試しください。');
+    } catch (err) {
+      console.error('Context paste failed:', err);
+      alert('貼り付けに失敗しました（権限やブラウザの制限の可能性があります）');
+    }
+  };
+
   // 設定を保存する
   const saveSettings = async () => {
     setIsSavingSettings(true);
@@ -314,7 +368,9 @@ export default function GenerateQuestionPage() {
                   id="file-upload"
                 />
                 <label 
+                  ref={dropAreaRef}
                   htmlFor="file-upload"
+                  onContextMenu={handleContextMenu}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -351,7 +407,8 @@ export default function GenerateQuestionPage() {
                       </div>
                       <div className="text-center">
                         <p className="font-medium text-gray-700">クリックしてアップロード</p>
-                        <p className="text-sm text-gray-500 mt-1">またはファイルをここにドラッグ＆ドロップ、またはクリップボードから貼り付け (Ctrl+V)</p>
+                        <p className="text-sm text-gray-500 mt-1">またはファイルをここにドラッグ＆ドロップ、またはクリップボードから貼り付け (Ctrl+V)
+                        <br />右クリックでメニューを表示して貼り付けも可能です。</p>
                         <p className="text-xs text-gray-400 mt-2">画像 (PNG, JPG) または PDF</p>
                       </div>
                     </>
@@ -434,6 +491,22 @@ export default function GenerateQuestionPage() {
           </div>
         </div>
       </div>
+
+      {/* カスタムコンテキストメニュー */}
+      {contextMenu.visible && (
+        <div
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-white border border-gray-200 rounded shadow-md"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleContextPaste}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          >
+            貼り付け (クリップボードの画像)
+          </button>
+        </div>
+      )}
 
       {/* 設定モーダル */}
       {showSettings && (
