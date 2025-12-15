@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.86.0",
     "@types/papaparse": "^5.5.1",
+    "@vercel/analytics": "^1.6.1",
     "lucide-react": "^0.555.0",
     "next": "^16.0.7",
     "papaparse": "^5.5.3",
