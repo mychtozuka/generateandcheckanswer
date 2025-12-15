@@ -295,6 +295,42 @@ export default function GenerateQuestionPage() {
     alert('結果をクリップボードにコピーしました');
   };
 
+  // 生成テキストを解析して {question, answer, raw} の配列を返す
+  const parseGeneratedToPairs = (text: string) => {
+    const pairs: { question: string; answer: string; raw: string }[] = [];
+    // セクション分割: ## 類題 N または --- 区切りを想定
+    const sectionRegex = /##\s*類題\s*\d+[\s\S]*?(?=(?:##\s*類題\s*\d+)|$)/g;
+    const sections = text.match(sectionRegex) || [];
+
+    if (sections.length === 0) {
+      // フォールバック: --- 区切りで分割
+      const parts = text.split(/^---$/m).map(s => s.trim()).filter(Boolean);
+      for (const p of parts) {
+        const qa = splitQuestionAnswer(p);
+        pairs.push({ question: qa.question, answer: qa.answer, raw: p });
+      }
+      return pairs;
+    }
+
+    for (const s of sections) {
+      const qa = splitQuestionAnswer(s);
+      pairs.push({ question: qa.question, answer: qa.answer, raw: s });
+    }
+    return pairs;
+  };
+
+  const splitQuestionAnswer = (section: string) => {
+    // 解答ブロックは「【解答】」を想定
+    const answerMarker = /【解答】/;
+    const idx = section.search(answerMarker);
+    if (idx === -1) {
+      return { question: section.trim(), answer: '' };
+    }
+    const question = section.slice(0, idx).replace(/##\s*類題\s*\d+/i, '').trim();
+    const answer = section.slice(idx).replace(/【解答】/i, '').trim();
+    return { question, answer };
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 p-8">
       <div className="max-w-7xl mx-auto">
@@ -468,6 +504,49 @@ export default function GenerateQuestionPage() {
                   className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
                 >
                   <Copy size={14} /> コピー
+                </button>
+              )}
+              {result && (
+                <button
+                  onClick={() => {
+                    try {
+                      const pairs = parseGeneratedToPairs(result);
+                      if (pairs.length === 0) {
+                        alert('解析できる類題が見つかりませんでした');
+                        return;
+                      }
+                      // ヘッダーを横一列に作る: Question 1, Answer 1, Question 2, Answer 2, ...
+                      const headers: string[] = [];
+                      const values: string[] = [];
+                      pairs.forEach((p, i) => {
+                        const idx = i + 1;
+                        headers.push(`Question ${idx}`);
+                        headers.push(`Answer ${idx}`);
+                        values.push(p.question.replace(/\r?\n/g, '\\n'));
+                        values.push(p.answer.replace(/\r?\n/g, '\\n'));
+                      });
+
+                      const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+                      const csv = [headers.map(escape).join(',') , values.map(escape).join(',')].join('\n');
+
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+                      a.download = `generated-questions-${ts}.csv`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      console.error('CSV export failed', err);
+                      alert('CSVのエクスポートに失敗しました');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                >
+                  CSV エクスポート（横一列）
                 </button>
               )}
             </div>
