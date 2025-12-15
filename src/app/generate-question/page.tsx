@@ -529,7 +529,10 @@ export default function GenerateQuestionPage() {
                       const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
                       const csv = [headers.map(escape).join(',') , values.map(escape).join(',')].join('\n');
 
-                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      // Excel での文字化け対策: UTF-8 BOM を先頭に付け、改行は CRLF にする
+                      const csvWithCrLf = csv.replace(/\n/g, '\r\n');
+                      const bom = '\uFEFF';
+                      const blob = new Blob([bom + csvWithCrLf], { type: 'text/csv;charset=utf-8;' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
