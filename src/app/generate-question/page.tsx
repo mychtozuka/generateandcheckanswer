@@ -390,7 +390,7 @@ export default function GenerateQuestionPage() {
               >
                 <option value="gemini-2.5-pro">Gemini 2.5 Pro (高精度)</option>
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速)</option>
-                <option value="gemini-3-preview">Gemini 3 Preview (最新)</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (最新)</option>
               </select>
             </div>
 
