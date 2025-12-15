@@ -390,6 +390,7 @@ export default function GenerateQuestionPage() {
               >
                 <option value="gemini-2.5-pro">Gemini 2.5 Pro (高精度)</option>
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速)</option>
+                <option value="gemini-3-preview">Gemini 3 Preview (最新)</option>
               </select>
             </div>
 
@@ -518,22 +519,23 @@ export default function GenerateQuestionPage() {
                       // ヘッダーを横一列に作る: Question 1, Answer 1, Question 2, Answer 2, ...
                       const headers: string[] = [];
                       const values: string[] = [];
-                      pairs.forEach((p, i) => {
-                        const idx = i + 1;
-                        headers.push(`Question ${idx}`);
-                        headers.push(`Answer ${idx}`);
-                        values.push(p.question.replace(/\r?\n/g, '\\n'));
-                        values.push(p.answer.replace(/\r?\n/g, '\\n'));
-                      });
+                                pairs.forEach((p, i) => {
+                                  const idx = i + 1;
+                                  headers.push(`Question ${idx}`);
+                                  headers.push(`Answer ${idx}`);
+                                  // フィールド内の改行は実際のCRLFにして、そのまま引用で囲む
+                                  values.push(p.question.replace(/\r?\n/g, '\r\n'));
+                                  values.push(p.answer.replace(/\r?\n/g, '\r\n'));
+                                });
 
-                      const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
-                      const csv = [headers.map(escape).join(',') , values.map(escape).join(',')].join('\n');
+                                const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+                                // ヘッダー行と値行を CRLF で結合（フィールド内の改行は既にCRLF）
+                                const csv = [headers.map(escape).join(','), values.map(escape).join(',')].join('\r\n');
 
-                      // Excel での文字化け対策: UTF-8 BOM を先頭に付け、改行は CRLF にする
-                      const csvWithCrLf = csv.replace(/\n/g, '\r\n');
-                      const bom = '\uFEFF';
-                      const blob = new Blob([bom + csvWithCrLf], { type: 'text/csv;charset=utf-8;' });
-                      const url = URL.createObjectURL(blob);
+                                // UTF-8 BOM を先頭に付与
+                                const bom = '\uFEFF';
+                                const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+                                const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
                       const ts = new Date().toISOString().replace(/[:.]/g, '-');
