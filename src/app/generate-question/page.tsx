@@ -547,59 +547,60 @@ export default function GenerateQuestionPage() {
                 <FileText size={20} /> 生成結果
               </h2>
               {result && (
-                <button
-                  onClick={copyToClipboard}
-                  className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
-                >
-                  <Copy size={14} /> コピー
-                </button>
-              )}
-              {result && (
-                <button
-                  onClick={() => {
-                    try {
-                      const pairs = parseGeneratedToPairs(result);
-                      if (pairs.length === 0) {
-                        alert('解析できる類題が見つかりませんでした');
-                        return;
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={copyToClipboard}
+                    className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                  >
+                    <Copy size={14} /> コピー
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      try {
+                        const pairs = parseGeneratedToPairs(result);
+                        if (pairs.length === 0) {
+                          alert('解析できる類題が見つかりませんでした');
+                          return;
+                        }
+                        // ヘッダーを横一列に作る: Question 1, Answer 1, Question 2, Answer 2, ...
+                        const headers: string[] = [];
+                        const values: string[] = [];
+                        pairs.forEach((p, i) => {
+                          const idx = i + 1;
+                          headers.push(`Question ${idx}`);
+                          headers.push(`Answer ${idx}`);
+                          // フィールド内の改行は実際のCRLFにして、そのまま引用で囲む
+                          values.push(p.question.replace(/\r?\n/g, '\r\n'));
+                          values.push(p.answer.replace(/\r?\n/g, '\r\n'));
+                        });
+
+                        const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+                        // ヘッダー行と値行を CRLF で結合（フィールド内の改行は既にCRLF）
+                        const csv = [headers.map(escape).join(','), values.map(escape).join(',')].join('\r\n');
+
+                        // UTF-8 BOM を先頭に付与
+                        const bom = '\uFEFF';
+                        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+                        a.download = `generated-questions-${ts}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        console.error('CSV export failed', err);
+                        alert('CSVのエクスポートに失敗しました');
                       }
-                      // ヘッダーを横一列に作る: Question 1, Answer 1, Question 2, Answer 2, ...
-                      const headers: string[] = [];
-                      const values: string[] = [];
-                                pairs.forEach((p, i) => {
-                                  const idx = i + 1;
-                                  headers.push(`Question ${idx}`);
-                                  headers.push(`Answer ${idx}`);
-                                  // フィールド内の改行は実際のCRLFにして、そのまま引用で囲む
-                                  values.push(p.question.replace(/\r?\n/g, '\r\n'));
-                                  values.push(p.answer.replace(/\r?\n/g, '\r\n'));
-                                });
-
-                                const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
-                                // ヘッダー行と値行を CRLF で結合（フィールド内の改行は既にCRLF）
-                                const csv = [headers.map(escape).join(','), values.map(escape).join(',')].join('\r\n');
-
-                                // UTF-8 BOM を先頭に付与
-                                const bom = '\uFEFF';
-                                const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-                                const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-                      a.download = `generated-questions-${ts}.csv`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      URL.revokeObjectURL(url);
-                    } catch (err) {
-                      console.error('CSV export failed', err);
-                      alert('CSVのエクスポートに失敗しました');
-                    }
-                  }}
-                  className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
-                >
-                  CSV エクスポート（横一列）
-                </button>
+                    }}
+                    className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                  >
+                    CSV エクスポート（横一列）
+                  </button>
+                </div>
               )}
             </div>
             
