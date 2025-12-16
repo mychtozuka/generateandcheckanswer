@@ -606,11 +606,11 @@ export default function GenerateQuestionPage() {
             
             <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg border border-gray-200 p-4 relative">
               {result ? (
-                <div className="prose prose-slate max-w-none">
-                  <div className="whitespace-pre-wrap leading-relaxed text-gray-800 font-mono text-sm">
-                    {result}
-                  </div>
-                </div>
+                <textarea
+                  value={result}
+                  onChange={(e) => setResult(e.target.value)}
+                  className="w-full h-full resize-none bg-transparent border-0 outline-none leading-relaxed text-gray-800 font-mono text-sm whitespace-pre-wrap"
+                />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 space-y-3">
                   <p className="text-center">
