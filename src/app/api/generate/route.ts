@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, questionCount, model, customPrompt } = await req.json();
+    const { imageUrl, questionCount, model, customPrompt, additionalInstruction } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json(
@@ -38,9 +38,15 @@ export async function POST(req: Request) {
     });
 
     // 3. プロンプト内の変数を置換
-    const finalPrompt = customPrompt.replace(
+    let finalPrompt = customPrompt.replace(
       "{{QUESTION_COUNT}}", 
       questionCount.toString()
+    );
+    
+    // {{ADD_PROMPT}} を追加指示で置換（指示がない場合は空文字列）
+    finalPrompt = finalPrompt.replace(
+      "{{ADD_PROMPT}}",
+      additionalInstruction || ""
     );
 
     // 4. 生成実行

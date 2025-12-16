@@ -13,36 +13,65 @@ const supabase = createClient(
 );
 
 // 類題作成用のデフォルトテンプレート
-const GENERATION_TEMPLATE = `# 役割とゴール
-あなたは中学校の数学教師であり、ベテランの教材作成者です。
-入力された「元の問題（画像またはPDF）」を分析し、学習効果の高い「類題（数値替えや状況設定の変更）」を作成してください。
+const GENERATION_TEMPLATE = `# 役割
+あなたは中学校数学の教材作成スペシャリストです。
+提供された「元の問題（画像またはPDF）」を分析し、**その形式（レイアウト）を維持したまま**、学習効果の高い類題を作成してください。
 
-# 指定された条件
-- 作成する問題数: {{QUESTION_COUNT}}問
+# 作成指示
+- **作成数: {{QUESTION_COUNT}}問 （※この数を厳守すること）**
 - 対象学年: 中学数学レベル
 
-# 出力ルール
-1. **LaTeX形式**: 数式はLaTeX形式で記述し、バックスラッシュは二重（\\\\）にエスケープしてください。
-2. **構成**: 各問題について「問題文」と「模範解答（および略解）」のセットで出力してください。
-3. **難易度**: 元の問題と同程度の難易度を維持してください。
-4. **形式**: 入力された問題の単元・形式（計算、図形、関数など）を踏襲してください。
+{{ADD_PROMPT}}
+
+# 最重要：レイアウトの再現ルール
+**読みやすさを最優先し、余計な装飾線（マークダウンの表など）は使用しないでください。**
+
+1. **小問の並べ方**:
+   - 元画像が「表」や「横並び」であっても、出力時は **シンプルな縦並びのリスト** に変換してください。
+   - マークダウンの表（\`|\` や \`---\`）は**使用禁止**です。
+   - 例:
+     ① 2x+5
+     ② 3a-b
+
+2. **穴埋め形式**:
+   - 元画像に \`[ ]\` や \`( )\` がある場合、**（ ① ）** という形式を使って空欄を作ってください。
+   - 文脈や行の並び（仮定→結論の流れ）は維持してください。
+
+# テキスト表記ルール（CSV仕様）
+1. **半角統一**: 数字、アルファベット、記号（+, -, =, :）はすべて**半角**を使用してください。
+2. **スペース削除**: 数式内の演算子の前後には**スペースを入れない**でください。
+   - 良い例: \`2x+5=10\`
+   - 悪い例: \`2x + 5 = 10\`
+3. **単位**: 単位が必要な文章題では、文末に \`（単位をつけて答えよ）\` と記述してください。
+
+# LaTeXの使用ルール（厳守）
+システムで正しく表示させるため、以下のルールを守ってください。
+1. **適用範囲**:
+   - **累乗（指数）**、分数、ルート、特殊な記号を含む数式は、必ず LaTeX形式（\`$\`で囲む）を使用してください。
+     - 例: \`$x^2$\`, \`$\\frac{1}{2}$\`, \`$\\sqrt{2}$\`
+   - 単純な文字（n, x）や整数、一次方程式（乗数を含まないもの）は LaTeXを使わずテキストで記述してください。
+     - 例: \`2x+3=5\`, \`y\`
+2. **記述形式**:
+   - LaTeXコマンドのバックスラッシュは **1本（\`\\\`）** で記述してください。
 
 # 出力フォーマット
-以下のような形式で出力してください（マークダウンの強調などは適宜使用可）。
+※以下の形式に従い、**指定された数（{{QUESTION_COUNT}}問）だけ**出力してください。
 
 ---
 ## 類題 1
 (ここに問題文)
+次の多項式の項をすべて答えよ。また、何次式か答えよ。
 
-【解答】
-(ここに解答と解説)
+① x-5
+② 4a-3b
+③ $a^2+7a-8$
+
+**【解答】**
+① 項:x, -5, 次数:1次式
+② 項:4a, -3b, 次数:1次式
+③ 項:$a^2$, 7a, -8, 次数:2次式
 
 ---
-## 類題 2
-...
-
----
-※ 元の問題の図形等は、解くために必要な情報（長さや角度）を文章で補うか、汎用的な図形の説明を加えてください。
 `;
 
 export default function GenerateQuestionPage() {
@@ -50,6 +79,7 @@ export default function GenerateQuestionPage() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(3); // デフォルト3問
+  const [additionalInstruction, setAdditionalInstruction] = useState<string>(''); // 追加指示
   
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>('');
@@ -269,7 +299,8 @@ export default function GenerateQuestionPage() {
           imageUrl: publicFileUrl,
           questionCount: questionCount,
           model,
-          customPrompt: systemPrompt
+          customPrompt: systemPrompt,
+          additionalInstruction: additionalInstruction
         }),
       });
 
@@ -472,6 +503,19 @@ export default function GenerateQuestionPage() {
                   </span>
                   <span className="text-sm text-gray-600">問</span>
                 </div>
+              </div>
+
+              {/* 追加指示 */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  追加指示（任意）
+                </label>
+                <textarea
+                  value={additionalInstruction}
+                  onChange={(e) => setAdditionalInstruction(e.target.value)}
+                  placeholder="例：難易度を上げる、具体的な数値範囲を指定する など"
+                  className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm resize-none"
+                />
               </div>
             </div>
 
