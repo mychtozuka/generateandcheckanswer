@@ -13,7 +13,7 @@ export function proxy(req: NextRequest) {
     const authValue = basicAuth.split(' ')[1];
     const [user, pwd] = atob(authValue).split(':');
 
-      if (user === 'admin' && pwd === '54321') {
+      if (user === 'admin' && pwd === '12345') {
       return NextResponse.next();
     }
   }
