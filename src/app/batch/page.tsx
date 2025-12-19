@@ -593,9 +593,13 @@ export default function BatchPage() {
               break;
 
             } catch (recheckError: any) {
+              if (recheckError.name === 'AbortError') {
+                throw recheckError; // 中止エラーはそのまま投げる
+              }
               console.error(`${MODEL_VERIFIER}での再検証に失敗 (試行 ${recheckRetries + 1}):`, recheckError);
 
               if (recheckRetries < recheckMaxRetries) {
+                // ... (retry logic)
                 recheckRetries++;
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 continue;
@@ -877,6 +881,9 @@ export default function BatchPage() {
               break;
 
             } catch (recheckError: any) {
+              if (recheckError.name === 'AbortError') {
+                throw recheckError; // 中止エラーはそのまま投げる
+              }
               console.error(`${MODEL_VERIFIER}での再検証に失敗 (再チェック - 試行 ${recheckRetries + 1}):`, recheckError);
 
               if (recheckRetries < recheckMaxRetries) {
@@ -1095,8 +1102,8 @@ export default function BatchPage() {
                   disabled={processing}
                   className="p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white disabled:bg-gray-100"
                 >
-                  <option value={MODEL_PRO}>Gemini 2.5 Pro (高精度)</option>
-                  <option value={MODEL_FLASH}>Gemini 2.5 Flash (高速)</option>
+                  <option value={MODEL_PRO}>Gemini 3 Pro Preview (高精度)</option>
+                  <option value={MODEL_FLASH}>Gemini 3 Flash Preview (高速)</option>
                 </select>
                 {/* チェック開始 or 再チェックボタン */}
                 {items.filter(i => i.status === 'waiting' || i.status === 'no_file').length === 0 && items.some(i => i.status === 'completed' || i.status === 'error') ? (
