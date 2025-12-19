@@ -83,12 +83,12 @@ export default function GenerateQuestionPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(3); // デフォルト3問
   const [additionalInstruction, setAdditionalInstruction] = useState<string>(''); // 追加指示
-  
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>('');
-  const [model, setModel] = useState('gemini-2.5-pro');
+  const [model, setModel] = useState('gemini-3-flash-preview');
   const [dragActive, setDragActive] = useState(false);
-  
+
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(GENERATION_TEMPLATE);
@@ -210,7 +210,7 @@ export default function GenerateQuestionPage() {
       if (!res.ok) {
         throw new Error('Failed to save settings');
       }
-      
+
       setOriginalPrompt(systemPrompt);
       setShowSettings(false);
       alert('類題作成用の設定を保存しました');
@@ -231,8 +231,8 @@ export default function GenerateQuestionPage() {
   };
 
   const processFile = (selectedFile: File) => {
-    const url = selectedFile.type.startsWith('image/') 
-      ? URL.createObjectURL(selectedFile) 
+    const url = selectedFile.type.startsWith('image/')
+      ? URL.createObjectURL(selectedFile)
       : null;
     setFile(selectedFile);
     setPreviewUrl(url);
@@ -270,7 +270,7 @@ export default function GenerateQuestionPage() {
     if (!file) return;
 
     setLoading(true);
-    setResult(''); 
+    setResult('');
 
     try {
       let publicFileUrl = null;
@@ -290,7 +290,7 @@ export default function GenerateQuestionPage() {
       const { data: urlData } = supabase.storage
         .from('question-images')
         .getPublicUrl(fileName);
-      
+
       publicFileUrl = urlData.publicUrl;
 
       // 2. 生成APIに送信
@@ -308,7 +308,7 @@ export default function GenerateQuestionPage() {
       });
 
       const data = await res.json();
-      
+
       if (res.ok) {
         setResult(data.generatedText);
       } else {
@@ -422,8 +422,8 @@ export default function GenerateQuestionPage() {
                 onChange={(e) => setModel(e.target.value)}
                 className="p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:outline-none bg-white"
               >
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro (高精度)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速)</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (高精度)</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (高速)</option>
                 <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (最新)</option>
               </select>
             </div>
@@ -431,14 +431,14 @@ export default function GenerateQuestionPage() {
             <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
               {/* ドラッグ＆ドロップエリア */}
               <div className="relative">
-                <input 
-                  type="file" 
-                  accept="image/*,.pdf" 
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
                   onChange={handleFileChange}
                   className="hidden"
                   id="file-upload"
                 />
-                <label 
+                <label
                   ref={dropAreaRef}
                   htmlFor="file-upload"
                   onContextMenu={handleContextMenu}
@@ -451,7 +451,7 @@ export default function GenerateQuestionPage() {
                 >
                   {file ? (
                     <div className="flex flex-col items-center w-full h-full p-4 relative">
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           handleClearFile();
@@ -460,7 +460,7 @@ export default function GenerateQuestionPage() {
                       >
                         <Trash2 size={18} />
                       </button>
-                      
+
                       {previewUrl ? (
                         <img src={previewUrl} alt="Preview" className="h-full object-contain rounded" />
                       ) : (
@@ -479,7 +479,7 @@ export default function GenerateQuestionPage() {
                       <div className="text-center">
                         <p className="font-medium text-gray-700">クリックしてアップロード</p>
                         <p className="text-sm text-gray-500 mt-1">またはファイルをここにドラッグ＆ドロップ、またはクリップボードから貼り付け (Ctrl+V)
-                        <br />右クリックでメニューを表示して貼り付けも可能です。</p>
+                          <br />右クリックでメニューを表示して貼り付けも可能です。</p>
                         <p className="text-xs text-gray-400 mt-2">画像 (PNG, JPG) または PDF</p>
                       </div>
                     </>
@@ -603,7 +603,7 @@ export default function GenerateQuestionPage() {
                 </div>
               )}
             </div>
-            
+
             <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg border border-gray-200 p-4 relative">
               {result ? (
                 <textarea
@@ -648,14 +648,14 @@ export default function GenerateQuestionPage() {
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Settings size={20} /> 生成プロンプト設定
               </h3>
-              <button 
+              <button
                 onClick={() => setShowSettings(false)}
                 className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               <p className="text-sm text-gray-500 mb-4">
                 類題生成に使用するAIへの指示（システムプロンプト）を編集できます。
@@ -708,14 +708,14 @@ export default function GenerateQuestionPage() {
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Settings size={20} /> マスターテンプレート（参照用）
               </h3>
-              <button 
+              <button
                 onClick={() => setShowMasterTemplateModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               <textarea
                 value={GENERATION_TEMPLATE}

@@ -6,8 +6,8 @@ import Papa from 'papaparse';
 import { Upload, FileText, Image as ImageIcon, Play, Loader2, CheckCircle, AlertCircle, Download, Settings, X, StopCircle, Trash2 } from 'lucide-react';
 
 // モデル定数の定義
-const MODEL_FLASH = 'gemini-2.5-flash'; // ユーザー選択用（高速）
-const MODEL_PRO = 'gemini-2.5-pro'; // ユーザー選択用（高精度）
+const MODEL_FLASH = 'gemini-3-flash-preview'; // ユーザー選択用（高速）
+const MODEL_PRO = 'gemini-3-pro-preview'; // ユーザー選択用（高精度）
 const MODEL_VERIFIER = 'gemini-3-pro-preview'; // 再検証用最強モデル
 
 const MASTER_TEMPLATE = `# 前提条件とデータ処理ルール
@@ -173,7 +173,7 @@ export default function BatchPage() {
       if (!res.ok) {
         throw new Error('Failed to save settings');
       }
-      
+
       setOriginalPrompt(systemPrompt);
       setShowSettings(false);
       alert('設定を保存しました（全ユーザーに適用されます）');
@@ -198,7 +198,7 @@ export default function BatchPage() {
       } else if (entry.isDirectory) {
         const dirReader = entry.createReader();
         const allFiles: File[] = [];
-        
+
         const readEntries = () => {
           dirReader.readEntries(async (entries: any[]) => {
             if (entries.length === 0) {
@@ -209,8 +209,8 @@ export default function BatchPage() {
               readEntries(); // Continue reading until empty
             }
           }, (err: any) => {
-             console.warn('Directory read error:', err);
-             resolve(allFiles);
+            console.warn('Directory read error:', err);
+            resolve(allFiles);
           });
         };
         readEntries();
@@ -225,14 +225,14 @@ export default function BatchPage() {
     e.stopPropagation();
 
     console.log('=== handleDrop 呼び出し ===');
-    
+
     const files: File[] = [];
-    
+
     // items プロパティを優先して使用 (フォルダ対応)
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       console.log(`items detected: ${e.dataTransfer.items.length}`);
       const entries: any[] = [];
-      
+
       for (let i = 0; i < e.dataTransfer.items.length; i++) {
         const item = e.dataTransfer.items[i];
         if (item.kind === 'file') {
@@ -273,7 +273,7 @@ export default function BatchPage() {
     console.log('handleFileSelect 呼び出し');
     console.log('e.target.files:', e.target.files);
     console.log('e.target.files?.length:', e.target.files?.length);
-    
+
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
       console.log(`✅ 選択されたファイル数: ${filesArray.length}`);
@@ -290,7 +290,7 @@ export default function BatchPage() {
     console.log('=== processFiles 開始 ===');
     console.log(`受け取ったファイル数: ${files.length}`);
     console.log('ファイル一覧:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
-    
+
     const newCsv = files.find(f => f.name.endsWith('.csv'));
     const newResources = files.filter(f => !f.name.endsWith('.csv'));
 
@@ -341,7 +341,7 @@ export default function BatchPage() {
           // ソート順でアイテムを生成
           return mappedData.map((data, index) => {
             const { row, key } = data;
-            
+
             // ファイルマッチング (拡張子を除いたファイル名と一致するか)
             const matchedFile = resources.find(f => {
               const nameWithoutExt = f.name.substring(0, f.name.lastIndexOf('.'));
@@ -350,25 +350,25 @@ export default function BatchPage() {
 
             // 既存アイテムの状態を引き継ぐ
             const existingItem = prevItems.find(item => item.key === key);
-            
+
             let status: BatchItem['status'] = matchedFile ? 'waiting' : 'no_file';
             let answer = '';
 
             if (existingItem) {
-               // ファイルが変更されたかチェック
-               const isFileChanged = (() => {
-                 if (!existingItem.file && !matchedFile) return false;
-                 if (!existingItem.file || !matchedFile) return true;
-                 return existingItem.file.name !== matchedFile.name || 
-                        existingItem.file.size !== matchedFile.size ||
-                        existingItem.file.lastModified !== matchedFile.lastModified;
-               })();
+              // ファイルが変更されたかチェック
+              const isFileChanged = (() => {
+                if (!existingItem.file && !matchedFile) return false;
+                if (!existingItem.file || !matchedFile) return true;
+                return existingItem.file.name !== matchedFile.name ||
+                  existingItem.file.size !== matchedFile.size ||
+                  existingItem.file.lastModified !== matchedFile.lastModified;
+              })();
 
-               // ファイルが変わっていない、かつ既にステータスが進んでいる場合は維持
-               if (!isFileChanged && ['completed', 'processing', 'error'].includes(existingItem.status)) {
-                 status = existingItem.status;
-                 answer = existingItem.answer;
-               }
+              // ファイルが変わっていない、かつ既にステータスが進んでいる場合は維持
+              if (!isFileChanged && ['completed', 'processing', 'error'].includes(existingItem.status)) {
+                status = existingItem.status;
+                answer = existingItem.answer;
+              }
             }
 
             return {
@@ -426,7 +426,7 @@ export default function BatchPage() {
       }
 
       const item = targetItems[i];
-      
+
       // ステータスを処理中に更新
       setItems(prev => prev.map(p => p.id === item.id ? { ...p, status: 'processing' } : p));
 
@@ -441,7 +441,7 @@ export default function BatchPage() {
         ].filter(answer => answer && answer.trim() !== '');
 
         // 正解データを文字列化（なければ「(未登録)」）
-        const correctAnswerText = correctAnswers.length > 0 
+        const correctAnswerText = correctAnswers.length > 0
           ? correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n')
           : '(未登録)';
 
@@ -450,7 +450,7 @@ export default function BatchPage() {
         // ファイルがある場合のみBase64エンコード
         let base64Data: string | undefined = undefined;
         let mimeType: string | undefined = undefined;
-        
+
         if (item.file) {
           base64Data = await fileToBase64(item.file);
           mimeType = item.file.type || (item.file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
@@ -501,7 +501,7 @@ export default function BatchPage() {
               // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
               console.error('JSON解析エラー (handleStartBatch):', jsonError);
               answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
-              
+
               // 504の場合はリトライ
               if (res.status === 504 && retryCount < maxRetries) {
                 console.log(`504エラー (JSON解析失敗) - 再試行 ${retryCount + 1}/${maxRetries + 1}`);
@@ -510,9 +510,9 @@ export default function BatchPage() {
                 continue;
               }
             }
-            
+
             hasIssue = !!(answerText && (
-              answerText.includes('【指摘事項】') || 
+              answerText.includes('【指摘事項】') ||
               answerText.includes('致命的') ||
               answerText.includes('解答不能') ||
               answerText.includes('模範解答の誤り') ||
@@ -538,7 +538,7 @@ export default function BatchPage() {
             if (fetchError.name === 'AbortError') {
               throw fetchError; // 中止エラーはそのまま投げる
             }
-            
+
             if (retryCount < maxRetries) {
               console.log(`ネットワークエラー発生 (試行 ${retryCount + 1}/${maxRetries + 1}): ${fetchError.message} - 再試行します`);
               retryCount++;
@@ -554,7 +554,7 @@ export default function BatchPage() {
         // 不備がある場合は、gemini-3-pro-previewを使って再検証
         if (hasIssue && model !== MODEL_VERIFIER) {
           console.log(`不備検出: ${item.key} - ${MODEL_VERIFIER}で再検証します`);
-          
+
           let recheckRetries = 0;
           const recheckMaxRetries = 2;
           let recheckSuccess = false;
@@ -594,7 +594,7 @@ export default function BatchPage() {
 
             } catch (recheckError: any) {
               console.error(`${MODEL_VERIFIER}での再検証に失敗 (試行 ${recheckRetries + 1}):`, recheckError);
-              
+
               if (recheckRetries < recheckMaxRetries) {
                 recheckRetries++;
                 await new Promise(resolve => setTimeout(resolve, 3000));
@@ -609,9 +609,9 @@ export default function BatchPage() {
             console.log(`${MODEL_VERIFIER}再検証を${recheckMaxRetries + 1}回試行しましたが失敗 - 元の結果を維持します`);
           }
         }
-        
-        setItems(prev => prev.map(p => p.id === item.id ? { 
-          ...p, 
+
+        setItems(prev => prev.map(p => p.id === item.id ? {
+          ...p,
           status: (res?.ok) ? 'completed' : 'error',
           answer: answerText,
           hasIssue: hasIssue
@@ -640,21 +640,21 @@ export default function BatchPage() {
       } catch (error: any) {
         // 中止された場合はエラーとして記録しない
         if (error.name === 'AbortError') {
-          setItems(prev => prev.map(p => p.id === item.id ? { 
-            ...p, 
+          setItems(prev => prev.map(p => p.id === item.id ? {
+            ...p,
             status: 'waiting',
             answer: '',
             hasIssue: false
           } : p));
           break;
         }
-        
+
         console.error(`Error processing item ${item.id}:`, error);
         const errorMsg = `System Error: ${error.message}`;
         const hasIssueError = errorMsg.includes('致命的');
-        
-        setItems(prev => prev.map(p => p.id === item.id ? { 
-          ...p, 
+
+        setItems(prev => prev.map(p => p.id === item.id ? {
+          ...p,
           status: 'error',
           answer: errorMsg,
           hasIssue: hasIssueError
@@ -683,15 +683,15 @@ export default function BatchPage() {
       }
       return item;
     }));
-    
+
     // リセット後、状態更新を待ってからチェックを開始
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // 直接バッチ処理を開始(handleStartBatch内でアイテム取得するため)
-    const targetItems = items.filter(item => 
+    const targetItems = items.filter(item =>
       item.status === 'completed' || item.status === 'error'
     );
-    
+
     if (targetItems.length === 0) {
       return; // 何もしない
     }
@@ -710,7 +710,7 @@ export default function BatchPage() {
       }
 
       const item = targetItems[i];
-      
+
       // ステータスを処理中に更新
       setItems(prev => prev.map(p => p.id === item.id ? { ...p, status: 'processing' } : p));
 
@@ -725,7 +725,7 @@ export default function BatchPage() {
         ].filter(answer => answer && answer.trim() !== '');
 
         // 正解データを文字列化（なければ「(未登録)」）
-        const correctAnswerText = correctAnswers.length > 0 
+        const correctAnswerText = correctAnswers.length > 0
           ? correctAnswers.map((ans, idx) => `正解${idx + 1}: ${ans}`).join('\n')
           : '(未登録)';
 
@@ -734,7 +734,7 @@ export default function BatchPage() {
         // ファイルがある場合のみBase64エンコード
         let base64Data: string | undefined = undefined;
         let mimeType: string | undefined = undefined;
-        
+
         if (item.file) {
           base64Data = await fileToBase64(item.file);
           mimeType = item.file.type || (item.file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
@@ -785,7 +785,7 @@ export default function BatchPage() {
               // JSON解析に失敗した場合（HTMLエラーページが返された場合など）
               console.error('JSON解析エラー (handleRecheck):', jsonError);
               answerText = `サーバーエラー: レスポンスの解析に失敗しました (ステータス: ${res.status})`;
-              
+
               // 504の場合はリトライ
               if (res.status === 504 && retryCount < maxRetries) {
                 console.log(`504エラー (JSON解析失敗) - 再試行 ${retryCount + 1}/${maxRetries + 1}`);
@@ -794,9 +794,9 @@ export default function BatchPage() {
                 continue;
               }
             }
-            
+
             hasIssue = !!(answerText && (
-              answerText.includes('【指摘事項】') || 
+              answerText.includes('【指摘事項】') ||
               answerText.includes('致命的') ||
               answerText.includes('解答不能') ||
               answerText.includes('模範解答の誤り') ||
@@ -822,7 +822,7 @@ export default function BatchPage() {
             if (fetchError.name === 'AbortError') {
               throw fetchError; // 中止エラーはそのまま投げる
             }
-            
+
             if (retryCount < maxRetries) {
               console.log(`ネットワークエラー発生 (再チェック - 試行 ${retryCount + 1}/${maxRetries + 1}): ${fetchError.message} - 再試行します`);
               retryCount++;
@@ -838,7 +838,7 @@ export default function BatchPage() {
         // 不備がある場合は、gemini-3-pro-previewを使って再検証
         if (hasIssue && model !== MODEL_VERIFIER) {
           console.log(`不備検出 (再チェック): ${item.key} - ${MODEL_VERIFIER}で再検証します`);
-          
+
           let recheckRetries = 0;
           const recheckMaxRetries = 2;
           let recheckSuccess = false;
@@ -878,7 +878,7 @@ export default function BatchPage() {
 
             } catch (recheckError: any) {
               console.error(`${MODEL_VERIFIER}での再検証に失敗 (再チェック - 試行 ${recheckRetries + 1}):`, recheckError);
-              
+
               if (recheckRetries < recheckMaxRetries) {
                 recheckRetries++;
                 await new Promise(resolve => setTimeout(resolve, 3000));
@@ -893,9 +893,9 @@ export default function BatchPage() {
             console.log(`${MODEL_VERIFIER}再検証を${recheckMaxRetries + 1}回試行しましたが失敗 (再チェック) - 元の結果を維持します`);
           }
         }
-        
-        setItems(prev => prev.map(p => p.id === item.id ? { 
-          ...p, 
+
+        setItems(prev => prev.map(p => p.id === item.id ? {
+          ...p,
           status: (res?.ok) ? 'completed' : 'error',
           answer: answerText,
           hasIssue: hasIssue
@@ -924,21 +924,21 @@ export default function BatchPage() {
       } catch (error: any) {
         // 中止された場合はエラーとして記録しない
         if (error.name === 'AbortError') {
-          setItems(prev => prev.map(p => p.id === item.id ? { 
-            ...p, 
+          setItems(prev => prev.map(p => p.id === item.id ? {
+            ...p,
             status: 'waiting',
             answer: '',
             hasIssue: false
           } : p));
           break;
         }
-        
+
         console.error(`Error processing item ${item.id}:`, error);
         const errorMsg = `System Error: ${error.message}`;
         const hasIssueError = errorMsg.includes('致命的');
-        
-        setItems(prev => prev.map(p => p.id === item.id ? { 
-          ...p, 
+
+        setItems(prev => prev.map(p => p.id === item.id ? {
+          ...p,
           status: 'error',
           answer: errorMsg,
           hasIssue: hasIssueError
@@ -966,7 +966,7 @@ export default function BatchPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `check_result_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `check_result_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1019,7 +1019,7 @@ export default function BatchPage() {
 
         <div className="grid grid-cols-1 gap-6">
           {/* アップロードエリア */}
-          <div 
+          <div
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onDrop={handleDrop}
             className="bg-white p-8 rounded-xl shadow-sm border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors text-center"
@@ -1034,22 +1034,22 @@ export default function BatchPage() {
                   CSVファイルと、対応する画像/PDFファイルをまとめてアップロードしてください
                 </p>
               </div>
-              <input 
-                type="file" 
-                multiple 
+              <input
+                type="file"
+                multiple
                 accept=".csv,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp"
-                onChange={handleFileSelect} 
-                className="hidden" 
-                id="batch-file-input" 
+                onChange={handleFileSelect}
+                className="hidden"
+                id="batch-file-input"
               />
-              <label 
+              <label
                 htmlFor="batch-file-input"
                 className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
               >
                 ファイルを選択
               </label>
             </div>
-            
+
             {/* ファイルステータス */}
             <div className="mt-6 flex justify-center gap-8 text-sm">
               <div className={`flex items-center gap-2 ${csvFile ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
@@ -1114,7 +1114,7 @@ export default function BatchPage() {
                     disabled={processing || items.filter(i => i.status === 'waiting' || i.status === 'no_file').length === 0}
                     className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-white transition-colors
                       ${processing || items.filter(i => i.status === 'waiting' || i.status === 'no_file').length === 0
-                        ? 'bg-gray-300 cursor-not-allowed' 
+                        ? 'bg-gray-300 cursor-not-allowed'
                         : 'bg-green-600 hover:bg-green-700 shadow-md'}`}
                   >
                     {processing ? '実行中...' : 'チェック開始'}
@@ -1154,26 +1154,26 @@ export default function BatchPage() {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((item) => (
                       <tr
-                        key={item.id} 
+                        key={item.id}
                         style={{ backgroundColor: item.hasIssue ? '#fdf2f8' : '#ffffff' }}
                         className="hover:opacity-90"
                       >
-                          <td className="px-4 py-3 text-gray-500">{item.id}</td>
-                          <td className="px-4 py-3">
-                            {item.status === 'waiting' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">待機中</span>}
-                            {item.status === 'processing' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700"><Loader2 size={12} className="animate-spin mr-1"/>処理中</span>}
-                            {item.status === 'completed' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700"><CheckCircle size={12} className="mr-1"/>完了</span>}
-                            {item.status === 'error' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700"><AlertCircle size={12} className="mr-1"/>エラー</span>}
-                            {item.status === 'no_file' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">ファイルなし</span>}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-gray-600">{item.key}</td>
-                          <td className="px-4 py-3 text-gray-600 truncate max-w-[200px]" title={item.fileName || ''}>
-                            {item.fileName || '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="whitespace-pre-wrap text-xs text-gray-800">
-                              {item.answer}
-                            </div>
+                        <td className="px-4 py-3 text-gray-500">{item.id}</td>
+                        <td className="px-4 py-3">
+                          {item.status === 'waiting' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">待機中</span>}
+                          {item.status === 'processing' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700"><Loader2 size={12} className="animate-spin mr-1" />処理中</span>}
+                          {item.status === 'completed' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700"><CheckCircle size={12} className="mr-1" />完了</span>}
+                          {item.status === 'error' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700"><AlertCircle size={12} className="mr-1" />エラー</span>}
+                          {item.status === 'no_file' && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">ファイルなし</span>}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-600">{item.key}</td>
+                        <td className="px-4 py-3 text-gray-600 truncate max-w-[200px]" title={item.fileName || ''}>
+                          {item.fileName || '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="whitespace-pre-wrap text-xs text-gray-800">
+                            {item.answer}
+                          </div>
                         </td>
                       </tr>
                     ))}

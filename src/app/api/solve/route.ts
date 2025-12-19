@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from '@supabase/supabase-js';
 
 // Vercelのタイムアウト対策
-export const maxDuration = 60; 
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -22,8 +22,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '問題文または画像が必要です' }, { status: 400 });
     }
 
-    // 指定されたモデルを使用 (デフォルトは gemini-2.5-pro)
-    const targetModel = modelName || "gemini-2.5-pro";
+    // 指定されたモデルを使用 (デフォルトは gemini-3-flash-preview)
+    const targetModel = modelName || "gemini-3-flash-preview";
     const model = genAI.getGenerativeModel({ model: targetModel });
 
     // デフォルトプロンプト（データベース設定が取得できない場合の予備）
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     // プレースホルダーを実際のデータで置換
     const problemText = text || '';
     const correctAnswerText = correctAnswer || '(未登録)';
-    
+
     prompt = prompt.replace('{{PROBLEM_TEXT}}', problemText);
     prompt = prompt.replace('{{CORRECT_ANSWER_OR_EMPTY}}', correctAnswerText);
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         const imageResp = await fetch(imageUrl);
         const arrayBuffer = await imageResp.arrayBuffer();
         const base64Image = Buffer.from(arrayBuffer).toString('base64');
-        
+
         // MIMEタイプの判定を強化
         let mimeType = imageResp.headers.get('content-type');
         if (!mimeType || mimeType === 'application/octet-stream') {
@@ -101,14 +101,14 @@ export async function POST(req: Request) {
       try {
         // AI実行 (ストリーミング使用)
         const result = await model.generateContentStream(contentParts);
-        
+
         // ストリーミングレスポンスを全て受信
         let fullText = "";
         for await (const chunk of result.stream) {
           const chunkText = chunk.text();
           fullText += chunkText;
         }
-        
+
         answer = fullText;
 
         // 履歴保存 (非同期で待たない)
@@ -124,17 +124,17 @@ export async function POST(req: Request) {
 
       } catch (e: any) {
         console.error(`AI generation error (Attempt ${retries + 1}):`, e.message);
-        
+
         // 429 (レート制限) または quota exceeded エラーの場合は即座に失敗
-        const is429Error = e.message?.includes('429') || 
-                          e.message?.includes('Quota exceeded') || 
-                          e.message?.includes('quota');
-        
+        const is429Error = e.message?.includes('429') ||
+          e.message?.includes('Quota exceeded') ||
+          e.message?.includes('quota');
+
         if (is429Error) {
           answer = "（エラー: API制限超過。Gemini 2.5 Proは1分2回/1日50回まで。時間をおいて再試行するか、Gemini 2.5 Flashをご利用ください）";
           break; // リトライせずに即座に終了
         }
-        
+
         if (retries === maxRetries) {
           // 最終試行でも失敗した場合
           if (e.message?.includes('503')) {

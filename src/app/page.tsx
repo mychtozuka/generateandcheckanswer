@@ -115,7 +115,7 @@ export default function Home() {
   );
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
-  const [model, setModel] = useState('gemini-2.5-pro');
+  const [model, setModel] = useState('gemini-3-flash-preview');
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0); // 進捗率 (0-100)
   const [processingStatus, setProcessingStatus] = useState(''); // 進捗状況テキスト
@@ -157,7 +157,7 @@ export default function Home() {
       if (!res.ok) {
         throw new Error('Failed to save settings');
       }
-      
+
       setOriginalPrompt(systemPrompt);
       setShowSettings(false);
       alert('設定を保存しました（全ユーザーに適用されます）');
@@ -177,8 +177,8 @@ export default function Home() {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       // 画像ならプレビューURLを作成、PDFならnull（アイコン表示に使用）
-      const previewUrl = selectedFile.type.startsWith('image/') 
-        ? URL.createObjectURL(selectedFile) 
+      const previewUrl = selectedFile.type.startsWith('image/')
+        ? URL.createObjectURL(selectedFile)
         : null;
 
       setQuestions(prev => prev.map(q => q.id === id ? { ...q, file: selectedFile, previewUrl } : q));
@@ -204,8 +204,8 @@ export default function Home() {
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const selectedFile = e.dataTransfer.files[0];
-      const previewUrl = selectedFile.type.startsWith('image/') 
-        ? URL.createObjectURL(selectedFile) 
+      const previewUrl = selectedFile.type.startsWith('image/')
+        ? URL.createObjectURL(selectedFile)
         : null;
 
       setQuestions(prev => prev.map(q => q.id === id ? { ...q, file: selectedFile, previewUrl } : q));
@@ -261,7 +261,7 @@ export default function Home() {
           const { data: urlData } = supabase.storage
             .from('question-images')
             .getPublicUrl(fileName);
-          
+
           publicFileUrl = urlData.publicUrl;
         }
 
@@ -278,7 +278,7 @@ export default function Home() {
         });
 
         const data = await res.json();
-        
+
         // 結果を更新
         setResults(prev => {
           const newResults = [...prev];
@@ -367,8 +367,8 @@ export default function Home() {
                 onChange={(e) => setModel(e.target.value)}
                 className="p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
               >
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro (高精度)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (高速)</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview (高精度)</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (高速)</option>
               </select>
             </div>
 
@@ -385,14 +385,14 @@ export default function Home() {
                     />
                     <div className="flex items-center gap-2">
                       <div className="flex-1 relative">
-                        <input 
-                          type="file" 
-                          accept="image/*,.pdf" 
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
                           onChange={(e) => handleFileChange(q.id, e)}
                           className="hidden"
                           id={`file-input-${q.id}`}
                         />
-                        <label 
+                        <label
                           htmlFor={`file-input-${q.id}`}
                           onDragOver={(e) => handleDragOver(e, q.id)}
                           onDragLeave={handleDragLeave}
@@ -405,7 +405,7 @@ export default function Home() {
                         </label>
                       </div>
                       {q.file && (
-                        <button 
+                        <button
                           onClick={() => handleClearFile(q.id)}
                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                           title="ファイルを削除"
@@ -439,12 +439,12 @@ export default function Home() {
             >
               {/* 進捗バー背景 */}
               {loading && (
-                <div 
+                <div
                   className="absolute left-0 top-0 h-full bg-blue-500 transition-all duration-300 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               )}
-              
+
               <div className="relative z-10 flex items-center gap-2">
                 {loading ? <Loader2 className="animate-spin" /> : <Send size={18} />}
                 {loading ? `AIが思考中... (${processingStatus})` : 'まとめて解答を作成する'}
@@ -458,7 +458,7 @@ export default function Home() {
               <CheckCircle size={20} /> 解答結果
               <span className="ml-2 text-xs font-normal text-gray-500">（AIの出力は必ずしも正しいとは限りません）</span>
             </h2>
-            
+
             <div className="overflow-y-auto flex-1 pr-2">
               {results.length > 0 ? (
                 <div className="space-y-6">
@@ -473,11 +473,10 @@ export default function Home() {
                           {title}
                         </div>
                         <div className="p-4 prose prose-blue max-w-none bg-white">
-                          <div className={`whitespace-pre-wrap leading-relaxed ${
-                            ans.startsWith('（エラー') || ans.startsWith('（AI生成エラー') || ans.startsWith('（画像') 
-                              ? 'text-red-600 font-medium bg-red-50 p-4 rounded border border-red-100' 
-                              : 'text-gray-800'
-                          }`}>
+                          <div className={`whitespace-pre-wrap leading-relaxed ${ans.startsWith('（エラー') || ans.startsWith('（AI生成エラー') || ans.startsWith('（画像')
+                            ? 'text-red-600 font-medium bg-red-50 p-4 rounded border border-red-100'
+                            : 'text-gray-800'
+                            }`}>
                             {ans}
                           </div>
                         </div>
@@ -503,14 +502,14 @@ export default function Home() {
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Settings size={20} /> プロンプト設定
               </h3>
-              <button 
+              <button
                 onClick={() => setShowSettings(false)}
                 className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               <p className="text-sm text-gray-500 mb-4">
                 AIに指示するシステムプロンプトを編集できます。
@@ -563,14 +562,14 @@ export default function Home() {
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Settings size={20} /> マスターテンプレート（参照用）
               </h3>
-              <button 
+              <button
                 onClick={() => setShowMasterTemplateModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               <p className="text-sm text-gray-500 mb-4">
                 これはマスターテンプレートです。参照用として表示しています。
